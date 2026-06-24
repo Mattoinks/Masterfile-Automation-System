@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+
+# Storage & uploads (keep structure, ignore runtime data)
+uploads/*.pdf
+processed/*.pdf
+logs/*.log
+logs/*.json
+storage/masterfile/*.xlsx
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

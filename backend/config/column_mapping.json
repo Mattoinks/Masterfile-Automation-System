@@ -1,0 +1,21 @@
+{
+  "worksheet": "FY2526",
+  "columns": {
+    "case_id": "A",
+    "fy": "B",
+    "received_date": "C",
+    "data_source": "D",
+    "qmr_sap_no": "E",
+    "store_received": "F",
+    "dn_number": "J",
+    "type_of_return": "K",
+    "device": "L",
+    "package": "M",
+    "quantity": "S",
+    "status": "AC"
+  },
+  "header_row": 1,
+  "data_start_row": 2,
+  "default_fy": "FY2526",
+  "default_data_source": "DN PDF"
+}

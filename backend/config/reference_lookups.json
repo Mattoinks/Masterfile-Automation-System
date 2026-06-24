@@ -1,0 +1,25 @@
+{
+  "by_device": {
+    "M3991L": {
+      "owner": "Mark",
+      "gf": "33",
+      "package": "PG-FBGA-516-1",
+      "type_of_return": "SAP",
+      "dc": "DCA"
+    },
+    "SAK-TC389QP-160F300S AE": {
+      "owner": "Mark",
+      "gf": "33",
+      "package": "PG-FBGA-516-1",
+      "type_of_return": "SAP",
+      "dc": "DCA"
+    }
+  },
+  "by_package": {
+    "PG-FBGA-516-1": {
+      "gf": "33"
+    }
+  },
+  "by_customer": {},
+  "by_rma_prefix": {}
+}

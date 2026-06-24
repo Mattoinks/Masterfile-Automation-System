@@ -1,0 +1,37 @@
+{
+  "pdf_to_excel_headers": {
+    "case_id": ["Case_ID", "No"],
+    "fy": ["FY"],
+    "dn_date": ["Date Create Q lot no.", "Date Q lot no. Create"],
+    "data_source": ["Data source"],
+    "rma_number": ["QMR/SAP no./Jira", "QMR/SAP no."],
+    "store_received": ["STORE Received", "STORE Receive"],
+    "recd_lw": ["Recd LW"],
+    "recd_mth": ["Recd Mth"],
+    "dn_number": ["DN / Invoice No.", "DN/Invoice No.", "DN / Invoice No"],
+    "type_of_return": ["Type of Return"],
+    "device": ["Device"],
+    "package": ["Package"],
+    "gf": ["GF"],
+    "date_code": ["Date code"],
+    "dc_bau": ["DC Bau"],
+    "test_bau": ["Test Bau"],
+    "vkl_bau": ["VKL Bau"],
+    "quantity": ["Qty   (pcs)", "Qty (pcs)", "Return Qty"],
+    "dc": ["DC"],
+    "owner": ["Owner"],
+    "rework_flow_procedure": ["Rework Flow Procedure"],
+    "cause_owner": ["Cause Owner", "Rework Flow By", "Engineer"],
+    "case_title": ["Case Title"],
+    "store_lot_qty": ["Store \n(Lot no / Qty)", "Store (Lot no / Qty)"],
+    "status": ["Status"]
+  },
+  "computed_fields": {
+    "case_id": "auto_increment",
+    "fy": "worksheet_default_fy"
+  },
+  "config_defaults": {
+    "data_source": "SAP DN",
+    "status": "Open"
+  }
+}

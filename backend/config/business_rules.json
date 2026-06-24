@@ -1,0 +1,43 @@
+{
+  "defaults": {
+    "data_source": "SAP DN",
+    "type_of_return": "SAP",
+    "dc": "DCA",
+    "status": "Open"
+  },
+  "date_formats": {
+    "store_received": "%d-%b-%Y",
+    "date_create": "%Y-%m-%d",
+    "recd_mth": "%b %y",
+    "recd_lw": "yyww"
+  },
+  "multi_value_separators": {
+    "date_code": ", ",
+    "dc_bau": ", ",
+    "test_bau": ", ",
+    "store_lot_qty": ", "
+  },
+  "case_title": {
+    "fallback_template": "{customer} / Technical returns",
+    "use_historical_if_similarity_above": 0.35
+  },
+  "similarity_weights": {
+    "device": 10,
+    "package": 8,
+    "rma_number": 7,
+    "customer_name": 5,
+    "owner": 3
+  },
+  "required_manual_fields": [
+    "package",
+    "owner",
+    "case_title"
+  ],
+  "autofill_priority": [
+    "pdf",
+    "history",
+    "lookup",
+    "derived",
+    "default"
+  ]
+}
