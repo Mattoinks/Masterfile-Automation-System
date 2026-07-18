@@ -58,6 +58,7 @@ export function RecordDetailsPanel() {
           const histVal = ['history', 'lookup'].includes(record.field_sources?.[field] || '') ? getRecordField(record, field) : '';
           const finalVal = getRecordField(record, field);
           const label = FIELD_LABELS[field] || field.replace(/_/g, ' ');
+          const diag = record.field_diagnostics?.[field];
 
           return (
             <div key={field} className={cn('rounded-lg border p-3', SOURCE_COLORS[source] || '')}>
@@ -67,6 +68,21 @@ export function RecordDetailsPanel() {
                   {SOURCE_LABELS[source] || source}
                 </Badge>
               </div>
+              {diag && !finalVal && (
+                <div className="mb-2 rounded border border-amber-200 bg-amber-50/80 p-2 text-xs dark:border-amber-900 dark:bg-amber-950/30">
+                  <p className="font-medium text-amber-800 dark:text-amber-300">Why empty?</p>
+                  <p className="text-slate-600 dark:text-slate-300">{diag.reason}</p>
+                  {diag.suggested_value && (
+                    <p className="mt-1 text-violet-700 dark:text-violet-300">
+                      Suggested: <strong>{diag.suggested_value}</strong>
+                      {diag.suggestion_source && ` (${diag.suggestion_source})`}
+                      {diag.historical_match?.confidence
+                        ? ` — ${diag.historical_match.confidence}% confidence`
+                        : ''}
+                    </p>
+                  )}
+                </div>
+              )}
               {field === 'cause_owner' && (
                 <p className="text-xs text-slate-500 mb-2">
                   Auto-filled as <strong>{userName}</strong> when you enter Rework Flow — you can change it.

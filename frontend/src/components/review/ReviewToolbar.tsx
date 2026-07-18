@@ -1,4 +1,4 @@
-import { Undo2, Redo2, RotateCcw, Save, Users } from 'lucide-react';
+import { Undo2, Redo2, RotateCcw, Save, Users, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useApp } from '@/context/AppContext';
@@ -14,10 +14,24 @@ export function ReviewToolbar() {
     bulkApplyField,
     selectedRowIds,
     records,
+    removeReviewRecords,
   } = useApp();
 
   const [bulkOwner, setBulkOwner] = useState('');
   const selectedCount = Object.values(selectedRowIds).filter(Boolean).length;
+  const selectedIds = records
+    .filter((r) => r.record_id && selectedRowIds[r.record_id])
+    .map((r) => r.record_id!);
+
+  const handleRemoveSelected = () => {
+    if (selectedCount > 0) {
+      removeReviewRecords(selectedIds);
+      return;
+    }
+    if (records.length > 0) {
+      removeReviewRecords(records.map((r) => r.record_id!).filter(Boolean));
+    }
+  };
 
   return (
     <Card>
@@ -33,6 +47,19 @@ export function ReviewToolbar() {
             <RotateCcw className="h-4 w-4" /> Reset to Suggested
           </Button>
         </div>
+
+        <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRemoveSelected}
+          disabled={!records.length}
+          className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/30"
+        >
+          <Trash2 className="h-4 w-4" />
+          {selectedCount > 0 ? `Remove selected (${selectedCount})` : 'Remove all'}
+        </Button>
 
         <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
 

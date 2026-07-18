@@ -12,8 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DUPLICATE_STATUS_COLORS } from '@/api';
 import { cn } from '@/lib/utils';
+import { Trash2, Maximize2 } from 'lucide-react';
 
-export function SpreadsheetReview() {
+interface SpreadsheetReviewProps {
+  onExpandRecord?: (recordId: string) => void;
+}
+
+export function SpreadsheetReview({ onExpandRecord }: SpreadsheetReviewProps) {
   const {
     records,
     selectedRecordId,
@@ -29,6 +34,7 @@ export function SpreadsheetReview() {
     recordEdits,
     openDuplicateModal,
     duplicateActions,
+    removeReviewRecords,
   } = useApp();
 
   const cellRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | null>>({});
@@ -97,6 +103,22 @@ export function SpreadsheetReview() {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700" onPaste={onPaste}>
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+          Review grid — {records.length} record(s)
+        </span>
+        {onExpandRecord && selectedRecordId && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => onExpandRecord(selectedRecordId)}
+          >
+            <Maximize2 className="h-3.5 w-3.5 mr-1" />
+            Expand selected
+          </Button>
+        )}
+      </div>
       <div className="overflow-x-auto max-h-[50vh]">
         <table className="min-w-full border-collapse text-xs">
           <thead className="sticky top-0 z-10 bg-brand-700 text-white">
@@ -222,6 +244,30 @@ export function SpreadsheetReview() {
                           {duplicateActions[id] ? `Action: ${duplicateActions[id]}` : 'Resolve Duplicate'}
                         </Button>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 text-brand-700 hover:bg-brand-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onExpandRecord?.(id);
+                        }}
+                        title="Full view"
+                      >
+                        <Maximize2 className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeReviewRecords([id]);
+                        }}
+                        title="Remove this record from review"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                   </td>
                 </tr>

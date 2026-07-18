@@ -1,6 +1,6 @@
 from enum import Enum
 
-from typing import Optional
+from typing import Optional, Any
 
 
 
@@ -212,6 +212,8 @@ class ExtractedRecord(BaseModel):
 
     suggested_values: dict[str, str] = Field(default_factory=dict)
 
+    field_diagnostics: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
     review_status: ReviewStatus = ReviewStatus.PENDING_REVIEW
 
     status: RecordStatus = RecordStatus.NEW
@@ -269,6 +271,10 @@ class SaveRequest(BaseModel):
     records: list[SaveRecordRequest]
 
     user: str = "System"
+
+
+class RemoveRecordsRequest(BaseModel):
+    record_ids: list[str] = Field(default_factory=list)
 
 
 
@@ -403,4 +409,13 @@ class FastSearchRequest(BaseModel):
     sap_number: str = ""
     include_deleted: bool = False
     limit: int = 100
+
+
+class AnalysisRunResponse(BaseModel):
+    analyzed_at: str
+    directory: str
+    total_pdfs: int
+    reports: list[dict[str, Any]]
+    comparison: dict[str, Any]
+    summary: dict[str, Any]
 

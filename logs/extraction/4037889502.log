@@ -1,0 +1,108 @@
+=== Extraction Analysis: DN 4037889502 ===
+Generated: 2026-07-15T14:23:04.271068+00:00
+File: DN#4037889502_14Apr'26.pdf
+Pages: 2
+
+✓ Device
+  Value: SAK-TC389QP-160F300S AE
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Dn Date
+  Value: 2026-04-14
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Quantity
+  Value: 25000
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Dn Number
+  Value: 4037889502
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Owner
+  Value: Arandia Mark Davis
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: owner, case owner, responsible, assigned to, handler, attn, attention, attn.
+
+✗ Package
+  Value: PG-FBGA-516-1
+  Status: suggested
+  Confidence: 63.6%
+  Source: lookup
+  Reason: Requires historical lookup — not present as explicit PDF field.
+  Attempted labels: package, pkg, packaging, pack, material group, matl group
+  Historical Match: PG-FBGA-516-1 (confidence 63.6%, case 2)
+  Suggested: PG-FBGA-516-1 (source: lookup)
+  Alternative: historical_match
+
+✓ Gf
+  Value: 33
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: gf, plant, gefab, fab, geographic fab
+
+✗ Case Title
+  Value: INFINEON TECHNOLOGIES ASIA PACIFIC PTE LTD.
+  Status: suggested
+  Confidence: 63.6%
+  Source: history
+  Reason: Requires historical lookup — not present as explicit PDF field.
+  Attempted labels: case title, title, subject, description, return type
+  Historical Match: INFINEON TECHNOLOGIES ASIA PACIFIC PTE LTD. (confidence 63.6%, case 2)
+  Suggested: INFINEON TECHNOLOGIES ASIA PACIFIC PTE LTD. (source: history)
+  Alternative: historical_match
+
+✗ Rework Flow Procedure
+  Value: Lot received -> Detape, sorting DC/Lot code -> B8-> B6 ->B9-> Bake-In-> MSP-> Dry Pack-> FC -> Ship to DC. 
+  Status: suggested
+  Confidence: 63.6%
+  Source: history
+  Reason: Requires historical lookup — not present as explicit PDF field.
+  Attempted labels: rework flow, rework, procedure, flow, rework procedure
+  Historical Match: Lot received -> Detape, sorting DC/Lot code -> B8-> B6 ->B9-> Bake-In-> MSP-> Dry Pack-> FC -> Ship to DC. (confidence 63.6%, case 2)
+  Suggested: Lot received -> Detape, sorting DC/Lot code -> B8-> B6 ->B9-> Bake-In-> MSP-> Dry Pack-> FC -> Ship to DC.  (source: history)
+  Alternative: historical_match
+
+✓ Date Code
+  Value: 2412, 2413, 2414, 2425, 2426
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: date code, datecode, dc code, lot date, date codes
+
+✓ Dc Bau
+  Value: MA005413325, MA005914137
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: dc bau, dc_bau, finished prod, finished product, material no, material number
+
+✗ Test Bau
+  Value: 85423100
+  Status: suggested
+  Confidence: 63.6%
+  Source: history
+  Reason: Requires historical lookup — not present as explicit PDF field.
+  Attempted labels: test bau, test_bau, test lot, test batch
+  Historical Match: 85423100 (confidence 63.6%, case 2)
+  Suggested: 85423100 (source: history)
+  Alternative: historical_match

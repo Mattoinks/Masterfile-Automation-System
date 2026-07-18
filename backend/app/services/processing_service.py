@@ -3,6 +3,7 @@ import uuid
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any
 
 from app.models.schemas import (
     DuplicateAction,
@@ -23,7 +24,8 @@ from app.services.duplicate_service import DuplicateService
 from app.services.excel_service import ExcelLockedError, ExcelService, ExcelServiceError
 from app.services.index_db import get_index
 from app.services.lock_service import ExcelLockService
-from app.services.pdf_extractor import PDFExtractionError, extract_dn_data
+from app.services.pdf_analysis_service import PdfAnalysisService
+from app.services.pdf_extractor import PDFExtractionError, consolidate_extractions_by_dn, extract_dn_data
 from app.services.processing_progress import get_processing_progress
 from app.services.permissions import require_permission
 from app.services.validation import validate_record
@@ -39,6 +41,7 @@ class ProcessingService:
         self.backup = BackupService()
         self.lock = ExcelLockService()
         self.analytics = AnalyticsService()
+        self.pdf_analysis = PdfAnalysisService(autofill=self.autofill)
         self._pending_records: dict[str, ExtractedRecord] = {}
 
     BUSINESS_FIELDS = [
@@ -90,21 +93,23 @@ class ProcessingService:
             ))
         return records
 
-    def _process_single_pdf(
+    def _build_record_from_pdf_data(
         self,
-        pdf_path: Path,
+        pdf_data: dict,
+        filenames: list[str],
         master_records: list[ExistingMasterRecord],
         on_progress: Callable[[str, str, str], None] | None = None,
     ) -> tuple[ExtractedRecord, str]:
         record_id = str(uuid.uuid4())
+        display_name = filenames[0] if len(filenames) == 1 else ", ".join(filenames)
 
         def report(stage: str, message: str) -> None:
             if on_progress:
-                on_progress(pdf_path.name, stage, message)
+                on_progress(display_name, stage, message)
+
+        primary_path = UPLOADS_DIR / filenames[0] if filenames else UPLOADS_DIR / "unknown.pdf"
 
         try:
-            report("extracting", f"Extracting {pdf_path.name}…")
-            pdf_data = extract_dn_data(pdf_path, on_progress=report)
             report("autofill", "Applying business rules & history…")
             enriched = self.autofill.enrich(pdf_data)
             field_sources = enriched.get("field_sources", {})
@@ -123,18 +128,28 @@ class ProcessingService:
                 if enriched.get(k) not in (None, "")
             }
 
+            field_diagnostics = {}
+            if primary_path.exists():
+                field_diagnostics = self.pdf_analysis.diagnose_for_record(
+                    primary_path, pdf_data, enriched
+                )
+            for fld, diag in field_diagnostics.items():
+                if not enriched.get(fld) and diag.get("suggested_value"):
+                    suggested_values[fld] = diag["suggested_value"]
+
             record_kwargs = {k: str(enriched.get(k, "") or "") for k in self.BUSINESS_FIELDS}
             record_kwargs.update({
-                "filename": pdf_path.name,
+                "filename": display_name,
                 "field_sources": field_sources,
                 "pdf_values": pdf_values,
                 "suggested_values": suggested_values,
+                "field_diagnostics": field_diagnostics,
                 "record_id": record_id,
             })
             record = ExtractedRecord(**record_kwargs)
-        except PDFExtractionError as exc:
+        except Exception as exc:
             record = ExtractedRecord(
-                filename=pdf_path.name,
+                filename=display_name,
                 status=RecordStatus.INVALID,
                 validation_errors=[str(exc)],
                 record_id=record_id,
@@ -149,6 +164,25 @@ class ProcessingService:
             if match.duplicate_status != DuplicateStatusType.NEW:
                 record.status = RecordStatus.DUPLICATE
         return record, record_id
+
+    def _process_single_pdf(
+        self,
+        pdf_path: Path,
+        master_records: list[ExistingMasterRecord],
+        on_progress: Callable[[str, str, str], None] | None = None,
+    ) -> tuple[dict[str, Any], str, list[str]]:
+        """Stage 1: raw extraction only (no record yet)."""
+
+        def report(stage: str, message: str) -> None:
+            if on_progress:
+                on_progress(pdf_path.name, stage, message)
+
+        try:
+            report("extracting", f"Extracting {pdf_path.name}…")
+            pdf_data = extract_dn_data(pdf_path, on_progress=report)
+            return pdf_data, pdf_path.name, []
+        except PDFExtractionError as exc:
+            return {"dn_number": "", "source_files": [pdf_path.name]}, pdf_path.name, [str(exc)]
 
     def process_pdfs(self, filenames: list[str] | None = None, user: str = "System") -> ProcessResponse:
         self.excel.ensure_masterfile_exists()
@@ -186,6 +220,9 @@ class ProcessingService:
             )
 
         workers = min(PDF_PROCESS_WORKERS, max(1, len(pdf_files)))
+        raw_extractions: list[tuple[str, dict]] = []
+        extraction_errors: dict[str, list[str]] = {}
+
         try:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = {
@@ -194,34 +231,52 @@ class ProcessingService:
                 }
                 for future in as_completed(futures):
                     pdf_path = futures[future]
-                    record, record_id = future.result()
-                    if record.status != RecordStatus.INVALID:
-                        if record.status == RecordStatus.DUPLICATE:
-                            duplicates += 1
-                            self.logger.increment_stat("duplicates_found")
-                            if record.duplicate_status == DuplicateStatusType.EXACT:
-                                exact += 1
-                            else:
-                                possible += 1
-                        else:
-                            valid += 1
-                    else:
-                        invalid += 1
-
-                    self._pending_records[record_id] = record
-                    records.append(record)
-                    self.logger.log(
-                        pdf_path.name,
-                        record.dn_number or "N/A",
-                        "Upload",
-                        record.duplicate_status.value if record.status != RecordStatus.INVALID else record.status.value,
-                        user=user,
-                        details=f"Processed as {record.duplicate_status.value}",
-                    )
-                    self.logger.increment_stat("todays_uploads")
+                    pdf_data, name, errors = future.result()
+                    raw_extractions.append((name, pdf_data))
+                    if errors:
+                        extraction_errors[name] = errors
                     progress.complete_file()
 
-            records.sort(key=lambda r: r.filename)
+            consolidated = consolidate_extractions_by_dn(raw_extractions)
+
+            for merged_data in consolidated:
+                source_files = merged_data.get("source_files") or [merged_data.get("dn_number", "unknown")]
+                filenames_list = source_files if isinstance(source_files, list) else [str(source_files)]
+
+                record, record_id = self._build_record_from_pdf_data(
+                    merged_data, filenames_list, master_records, on_file_progress
+                )
+
+                for fname in filenames_list:
+                    if fname in extraction_errors:
+                        record.validation_errors.extend(extraction_errors[fname])
+
+                if record.status != RecordStatus.INVALID:
+                    if record.status == RecordStatus.DUPLICATE:
+                        duplicates += 1
+                        self.logger.increment_stat("duplicates_found")
+                        if record.duplicate_status == DuplicateStatusType.EXACT:
+                            exact += 1
+                        else:
+                            possible += 1
+                    else:
+                        valid += 1
+                else:
+                    invalid += 1
+
+                self._pending_records[record_id] = record
+                records.append(record)
+                self.logger.log(
+                    record.filename,
+                    record.dn_number or "N/A",
+                    "Upload",
+                    record.duplicate_status.value if record.status != RecordStatus.INVALID else record.status.value,
+                    user=user,
+                    details=f"Merged {len(filenames_list)} PDF(s) → 1 record",
+                )
+                self.logger.increment_stat("todays_uploads")
+
+            records.sort(key=lambda r: r.dn_number or r.filename)
             progress.finish()
             return ProcessResponse(
                 records=records,
@@ -443,3 +498,12 @@ class ProcessingService:
             return False
         path.unlink()
         return True
+
+    def remove_pending_records(self, record_ids: list[str]) -> dict[str, int | list[str]]:
+        """Remove records from the review queue without saving to masterfile."""
+        removed: list[str] = []
+        for record_id in record_ids:
+            if record_id in self._pending_records:
+                del self._pending_records[record_id]
+                removed.append(record_id)
+        return {"removed": len(removed), "record_ids": removed}

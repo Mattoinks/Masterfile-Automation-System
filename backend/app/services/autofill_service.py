@@ -32,6 +32,7 @@ class AutofillService:
         pdf_fields = [
             "dn_number", "dn_date", "customer_name", "device", "package", "quantity",
             "lot_number", "material_number", "rma_number", "plant_code",
+            "owner", "rework_flow_procedure",
             "all_lot_numbers", "all_date_codes", "all_material_numbers",
             "all_finished_prod_nos", "all_test_bau",
         ]

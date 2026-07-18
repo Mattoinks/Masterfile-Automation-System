@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ExcelRowPreview } from '@/components/dashboard/ExcelRowPreview';
 import { SpreadsheetReview } from '@/components/review/SpreadsheetReview';
 import { FieldComparison } from '@/components/review/FieldComparison';
+import { RecordFullViewModal } from '@/components/review/RecordFullViewModal';
 import { ReviewToolbar } from '@/components/review/ReviewToolbar';
 import { ApprovalPanel } from '@/components/review/ApprovalPanel';
 import { DuplicateModal } from '@/components/duplicate/DuplicateModal';
@@ -21,15 +22,23 @@ export function PreviewPage() {
     lastCaseId,
     reviewMode,
     records,
+    selectedRecordId,
     duplicateModalRecordId,
     duplicateActions,
     closeDuplicateModal,
     confirmDuplicateAction,
     exactDuplicateCount,
     possibleDuplicateCount,
+    activeWorksheet,
   } = useApp();
   const { can } = useAuth();
   const [modalAction, setModalAction] = useState<DuplicateAction>('skip');
+  const [fullViewRecordId, setFullViewRecordId] = useState<string | null>(null);
+
+  const fullViewRecord = records.find((r) => r.record_id === fullViewRecordId);
+  const fullViewIndex = fullViewRecord
+    ? Math.max(0, records.findIndex((r) => r.record_id === fullViewRecord.record_id))
+    : 0;
 
   const modalRecord = records.find((r) => r.record_id === duplicateModalRecordId);
 
@@ -88,8 +97,11 @@ export function PreviewPage() {
           <ReviewToolbar />
           <ApprovalPanel />
           <ExcelChangePreview duplicateAction={modalAction} />
-          <ExcelRowPreview />
-          <SpreadsheetReview />
+          <ExcelRowPreview onExpand={() => {
+            const id = selectedRecordId || records[0]?.record_id;
+            if (id) setFullViewRecordId(id);
+          }} />
+          <SpreadsheetReview onExpandRecord={setFullViewRecordId} />
           <FieldComparison />
         </>
       )}
@@ -101,6 +113,15 @@ export function PreviewPage() {
             <p className="text-sm mt-2">Upload DN PDFs and run Extract & Validate to enter Review Mode.</p>
           </CardContent>
         </Card>
+      )}
+
+      {fullViewRecord?.record_id && (
+        <RecordFullViewModal
+          record={fullViewRecord}
+          assignedCaseId={lastCaseId + 1 + fullViewIndex}
+          activeWorksheet={activeWorksheet}
+          onClose={() => setFullViewRecordId(null)}
+        />
       )}
 
       {modalRecord && duplicateModalRecordId && (

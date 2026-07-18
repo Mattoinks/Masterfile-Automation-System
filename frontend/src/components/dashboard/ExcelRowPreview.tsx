@@ -1,5 +1,7 @@
 import { useApp } from '@/context/AppContext';
 import { SOURCE_LABELS } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Maximize2 } from 'lucide-react';
 
 const PREVIEW_COLUMNS = [
   { key: 'case_id', label: 'Case_ID' },
@@ -20,7 +22,7 @@ const PREVIEW_COLUMNS = [
   { key: 'case_title', label: 'Case Title' },
 ];
 
-export function ExcelRowPreview() {
+export function ExcelRowPreview({ onExpand }: { onExpand?: () => void }) {
   const { records, selectedRecordId, lastCaseId, activeWorksheet, getRecordField } = useApp();
   const record = records.find((r) => r.record_id === selectedRecordId) || records[0];
 
@@ -32,13 +34,36 @@ export function ExcelRowPreview() {
     );
   }
 
-  const nextCaseId = lastCaseId + 1;
+  const recordIndex = Math.max(
+    0,
+    records.findIndex((r) => r.record_id === record.record_id)
+  );
+  const assignedCaseId = lastCaseId + 1 + recordIndex;
+  const totalInBatch = records.length;
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-300 shadow-sm dark:border-slate-600">
-      <div className="bg-brand-700 px-4 py-2 text-white text-sm font-semibold flex justify-between">
+      <div className="bg-brand-700 px-4 py-2 text-white text-sm font-semibold flex flex-wrap justify-between items-center gap-2">
         <span>Generated Row Preview — {activeWorksheet}</span>
-        <span className="text-brand-100 text-xs">Last: {lastCaseId} → New: {nextCaseId}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-brand-100 text-xs">
+            {totalInBatch > 1
+              ? `Record ${recordIndex + 1} of ${totalInBatch} → Case_ID ${assignedCaseId}`
+              : `Last: ${lastCaseId} → New: ${assignedCaseId}`}
+          </span>
+          {onExpand && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onExpand}
+              className="h-7 text-white hover:bg-brand-600 hover:text-white"
+              title="Open full view"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
       <div className="overflow-x-auto bg-white dark:bg-slate-900">
         <table className="min-w-full text-xs border-collapse">
@@ -55,7 +80,7 @@ export function ExcelRowPreview() {
             <tr className="bg-slate-50 dark:bg-slate-800/50">
               {PREVIEW_COLUMNS.map((col) => {
                 let val = getRecordField(record, col.key);
-                if (col.key === 'case_id') val = String(nextCaseId);
+                if (col.key === 'case_id') val = String(assignedCaseId);
                 if (col.key === 'fy') val = activeWorksheet;
                 if (col.key === 'data_source' && !val) val = 'SAP DN';
                 return (

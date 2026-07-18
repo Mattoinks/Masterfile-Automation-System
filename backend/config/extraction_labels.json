@@ -1,0 +1,25 @@
+{
+  "field_synonyms": {
+    "owner": ["owner", "case owner", "responsible", "assigned to", "handler", "attn", "attention", "attn."],
+    "package": ["package", "pkg", "packaging", "pack", "material group", "matl group"],
+    "gf": ["gf", "plant", "gefab", "fab", "geographic fab"],
+    "case_title": ["case title", "title", "subject", "description", "return type"],
+    "rework_flow_procedure": ["rework flow", "rework", "procedure", "flow", "rework procedure"],
+    "date_code": ["date code", "datecode", "dc code", "lot date", "date codes"],
+    "dc_bau": ["dc bau", "dc_bau", "finished prod", "finished product", "material no", "material number"],
+    "test_bau": ["test bau", "test_bau", "test lot", "test batch"],
+    "device": ["device", "model", "part number", "product", "part no", "material"],
+    "quantity": ["qty", "quantity", "pieces", "pce", "amount"],
+    "customer_name": ["customer", "company", "consignee", "ship to", "sold to"]
+  },
+  "investigation_fields": [
+    "owner",
+    "package",
+    "gf",
+    "case_title",
+    "rework_flow_procedure",
+    "date_code",
+    "dc_bau",
+    "test_bau"
+  ]
+}

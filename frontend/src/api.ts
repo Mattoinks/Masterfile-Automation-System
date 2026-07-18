@@ -78,6 +78,7 @@ export interface ExtractedRecord {
   field_sources: Record<string, string>;
   pdf_values: Record<string, string>;
   suggested_values: Record<string, string>;
+  field_diagnostics?: Record<string, FieldDiagnostic>;
   review_status?: string;
   status: RecordStatus;
   duplicate_status?: DuplicateStatusType;
@@ -85,6 +86,60 @@ export interface ExtractedRecord {
   validation_errors: string[];
   duplicate_action?: DuplicateAction | null;
   record_id?: string | null;
+}
+
+export interface FieldDiagnostic {
+  field: string;
+  value: string;
+  status: 'found' | 'missing' | 'suggested';
+  confidence: number;
+  source: string;
+  reason: string;
+  failure_category: string;
+  attempted_labels: string[];
+  labels_found: { label: string; page: number; line: number; value_after_label: string }[];
+  found_on_page: number | null;
+  historical_match: {
+    value: string;
+    confidence: number;
+    case_id: string;
+    dn_number: string;
+    match_reason: string;
+  } | null;
+  suggested_value: string;
+  suggestion_source: string;
+  alternative_method: string;
+}
+
+export interface PdfAnalysisReport {
+  filename: string;
+  dn_number: string;
+  page_count: number;
+  extraction_method: string;
+  field_sources: Record<string, string>;
+  fields: FieldDiagnostic[];
+  log_path: string;
+  errors: string[];
+}
+
+export interface AnalysisRunResult {
+  analyzed_at: string;
+  directory: string;
+  total_pdfs: number;
+  reports: PdfAnalysisReport[];
+  comparison: {
+    common_labels: Record<string, string[]>;
+    layout_variants: string[];
+    missing_sections: string[];
+    per_dn_summary: Record<string, Record<string, number>>;
+  };
+  summary: {
+    total_pdfs: number;
+    total_field_checks: number;
+    missing_fields: number;
+    low_confidence_fields: number;
+    dns_analyzed: string[];
+  };
 }
 
 export interface ProcessResponse {
@@ -162,7 +217,7 @@ export interface BackupInfo {
   created_at: string;
 }
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 const SESSION_KEY = 'rma-session-token';
 const REMEMBER_KEY = 'rma-remember-me';
 
@@ -439,6 +494,15 @@ export async function processPdfs(): Promise<ProcessResponse> {
   return handleResponse<ProcessResponse>(response);
 }
 
+export async function removeReviewRecords(recordIds: string[]): Promise<{ removed: number; record_ids: string[] }> {
+  const response = await fetch(`${API_BASE}/process/records/remove`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ record_ids: recordIds }),
+  });
+  return handleResponse(response);
+}
+
 export async function saveToMasterfile(
   records: { record_id: string; duplicate_action: DuplicateAction; overrides?: Record<string, string> }[]
 ): Promise<SaveResponse> {
@@ -521,6 +585,34 @@ export async function updateMasterfileRecord(caseId: string, fields: Record<stri
     method: 'PATCH',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ fields }),
+  });
+  return handleResponse(response);
+}
+
+export async function listAnalyzeSamples(): Promise<{ pdfs: string[]; directory: string }> {
+  const response = await fetch(`${API_BASE}/analyze/samples`, { headers: authHeaders() });
+  return handleResponse(response);
+}
+
+export async function runPdfAnalysis(): Promise<AnalysisRunResult> {
+  const response = await fetch(`${API_BASE}/analyze/run`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handleResponse<AnalysisRunResult>(response);
+}
+
+export async function analyzeSinglePdf(filename: string): Promise<PdfAnalysisReport> {
+  const response = await fetch(
+    `${API_BASE}/analyze/pdf?filename=${encodeURIComponent(filename)}`,
+    { method: 'POST', headers: authHeaders() }
+  );
+  return handleResponse<PdfAnalysisReport>(response);
+}
+
+export async function fetchExtractionLog(dnNumber: string): Promise<{ dn_number: string; log: string }> {
+  const response = await fetch(`${API_BASE}/analyze/logs/${encodeURIComponent(dnNumber)}`, {
+    headers: authHeaders(),
   });
   return handleResponse(response);
 }

@@ -1,0 +1,94 @@
+=== Extraction Analysis: DN 4038167989 ===
+Generated: 2026-07-15T14:22:34.318390+00:00
+File: DN# 4038167989_22Jun'26.pdf
+Pages: 1
+
+✓ Device
+  Value: SAK-TC237LP-32F200S AC
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Dn Date
+  Value: 2026-06-18
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Quantity
+  Value: 1000
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Dn Number
+  Value: 4038167989
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Owner
+  Value: Leow Siok Hua
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: owner, case owner, responsible, assigned to, handler, attn, attention, attn.
+
+✗ Package
+  Status: missing
+  Confidence: 0.0%
+  Reason: Requires manual entry — not in PDF and no historical match.
+  Attempted labels: package, pkg, packaging, pack, material group, matl group
+  Alternative: manual_entry
+
+✓ Gf
+  Value: 22
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: gf, plant, gefab, fab, geographic fab
+
+✗ Case Title
+  Value: UNKNOWN / Technical returns
+  Status: suggested
+  Confidence: 65.0%
+  Source: derived
+  Reason: Generated from customer name template (no explicit case title in PDF).
+  Attempted labels: case title, title, subject, description, return type
+  Suggested: UNKNOWN / Technical returns (source: derived)
+
+✗ Rework Flow Procedure
+  Status: missing
+  Confidence: 0.0%
+  Reason: Requires manual entry — not in PDF and no historical match.
+  Attempted labels: rework flow, rework, procedure, flow, rework procedure
+  Alternative: manual_entry
+
+✓ Date Code
+  Value: 2622
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: date code, datecode, dc code, lot date, date codes
+
+✓ Dc Bau
+  Value: MA005915139
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: dc bau, dc_bau, finished prod, finished product, material no, material number
+
+✗ Test Bau
+  Status: missing
+  Confidence: 0.0%
+  Reason: Requires manual entry — not in PDF and no historical match.
+  Attempted labels: test bau, test_bau, test lot, test batch
+  Alternative: manual_entry

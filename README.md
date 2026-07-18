@@ -2,6 +2,8 @@
 
 Web application that automates processing of DN PDF files into a single Excel masterfile.
 
+**Full documentation:** [docs/SYSTEM_GUIDE.md](docs/SYSTEM_GUIDE.md) — architecture, step-by-step workflow, API reference, deployment, and troubleshooting.
+
 ## Architecture
 
 ```

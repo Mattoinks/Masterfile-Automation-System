@@ -12,6 +12,7 @@ import {
   ScrollText,
   Search,
   Download,
+  FileSearch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
@@ -34,6 +35,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/history', icon: History, label: 'History', permission: 'view_logs' },
     { to: '/recycle-bin', icon: Trash2, label: 'Recycle Bin', permission: 'delete' },
     { to: '/users', icon: Users, label: 'User Management', permission: 'manage_users' },
+    { to: '/extraction-debug', icon: FileSearch, label: 'Extraction Debug', permission: 'configure' },
     { to: '/settings', icon: Settings, label: 'Settings', permission: 'configure' },
   ],
   engineer: [
@@ -59,7 +61,7 @@ export function Sidebar() {
   const items = NAV_BY_ROLE[role].filter((item) => !item.permission || can(item.permission));
 
   return (
-    <aside className="hidden lg:flex w-64 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+    <aside className="hidden lg:flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
       <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-6 dark:border-slate-800">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-700 text-white">
           <Factory className="h-5 w-5" />
@@ -70,7 +72,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {items.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}

@@ -7,12 +7,14 @@ from fastapi.responses import FileResponse
 from app.api.deps import get_current_user, require_perm
 
 from app.models.schemas import (
+    AnalysisRunResponse,
     AnalyticsResponse,
     DeleteRecordsRequest,
     FastSearchRequest,
     LockStatusResponse,
     PreviewSaveRequest,
     ProcessResponse,
+    RemoveRecordsRequest,
     SaveRequest,
     SaveResponse,
     SearchRequest,
@@ -25,6 +27,7 @@ from app.services.backup_service import BackupService
 from app.services.excel_service import ExcelService
 from app.services.lock_service import ExcelLockService
 from app.services.permissions import has_permission
+from app.services.pdf_analysis_service import PdfAnalysisService
 from app.services.processing_progress import get_processing_progress
 from app.services.processing_service import ProcessingService
 from app.services.record_service import RecordService
@@ -37,6 +40,7 @@ excel_service = ExcelService()
 backup_service = BackupService()
 lock_service = ExcelLockService()
 analytics_service = AnalyticsService()
+pdf_analysis_service = PdfAnalysisService()
 
 
 @router.get("/health")
@@ -149,6 +153,19 @@ def process_pdfs(
 @router.get("/process/status")
 def get_process_status(_: Annotated[dict, Depends(get_current_user)]):
     return get_processing_progress().snapshot()
+
+
+@router.post("/process/records/remove")
+def remove_review_records(
+    request: RemoveRecordsRequest,
+    user: Annotated[dict, Depends(require_perm("process"))],
+):
+    if not request.record_ids:
+        raise HTTPException(status_code=400, detail="No record IDs provided")
+    result = processing_service.remove_pending_records(request.record_ids)
+    for record_id in result["record_ids"]:
+        audit_logger.log("N/A", record_id, "Review", "Record Removed", user=user["username"])
+    return result
 
 
 @router.post("/save/preview")
@@ -384,3 +401,62 @@ def remove_upload(
         raise HTTPException(status_code=404, detail=f"File not found: {filename}")
     audit_logger.log(filename, "N/A", "Upload", "Removed", user=user["username"])
     return {"message": "File removed", "filename": Path(filename).name}
+
+
+@router.get("/analyze/samples")
+def list_analyze_samples(_: Annotated[dict, Depends(require_perm("configure"))]):
+    return {"pdfs": pdf_analysis_service.list_sample_pdfs(), "directory": str(pdf_analysis_service.analyze_dir)}
+
+
+@router.post("/analyze/run", response_model=AnalysisRunResponse)
+def run_pdf_analysis(_: Annotated[dict, Depends(require_perm("configure"))]):
+    try:
+        return pdf_analysis_service.analyze_directory()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/analyze/pdf")
+def analyze_single_pdf(
+    filename: str,
+    _: Annotated[dict, Depends(require_perm("configure"))],
+):
+    from config.settings import ANALYZE_DIR
+    path = ANALYZE_DIR / Path(filename).name
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"PDF not found in analyze/: {filename}")
+    try:
+        result = pdf_analysis_service.analyze_pdf(path)
+        return pdf_analysis_service._serialize_result(result)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/analyze/report/{dn_number}")
+def get_analysis_report(
+    dn_number: str,
+    _: Annotated[dict, Depends(require_perm("configure"))],
+):
+    report = pdf_analysis_service.get_report_by_dn(dn_number)
+    if not report:
+        raise HTTPException(status_code=404, detail=f"No analysis report for DN {dn_number}")
+    return report
+
+
+@router.get("/analyze/logs/{dn_number}")
+def get_extraction_log(
+    dn_number: str,
+    _: Annotated[dict, Depends(require_perm("configure"))],
+):
+    content = pdf_analysis_service.get_log_content(dn_number)
+    if not content:
+        raise HTTPException(status_code=404, detail=f"No extraction log for DN {dn_number}")
+    return {"dn_number": dn_number, "log": content}
+
+
+@router.get("/analyze/comparison")
+def get_analysis_comparison(_: Annotated[dict, Depends(require_perm("configure"))]):
+    comparison = pdf_analysis_service.get_last_comparison()
+    if not comparison:
+        raise HTTPException(status_code=404, detail="Run analysis first via POST /api/analyze/run")
+    return comparison

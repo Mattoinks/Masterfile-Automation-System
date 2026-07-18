@@ -1,0 +1,93 @@
+=== Extraction Analysis: DN 4038185975 ===
+Generated: 2026-07-15T14:22:48.880879+00:00
+File: DN# 4038185975_23Jun'26.pdf
+Pages: 3
+
+✓ Device
+  Value: TLE9263BQX
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Dn Date
+  Value: 2026-06-23
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Quantity
+  Value: 5178
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✓ Dn Number
+  Value: 4038185975
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+
+✗ Owner
+  Status: missing
+  Confidence: 0.0%
+  Reason: Requires manual entry — not in PDF and no historical match.
+  Attempted labels: owner, case owner, responsible, assigned to, handler, attn, attention, attn.
+  Alternative: manual_entry
+
+✗ Package
+  Status: missing
+  Confidence: 0.0%
+  Reason: Requires manual entry — not in PDF and no historical match.
+  Attempted labels: package, pkg, packaging, pack, material group, matl group
+  Alternative: manual_entry
+
+✓ Gf
+  Value: 24
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: gf, plant, gefab, fab, geographic fab
+
+✗ Case Title
+  Value: UNKNOWN / Technical returns
+  Status: suggested
+  Confidence: 65.0%
+  Source: derived
+  Reason: Generated from customer name template (no explicit case title in PDF).
+  Attempted labels: case title, title, subject, description, return type
+  Suggested: UNKNOWN / Technical returns (source: derived)
+
+✗ Rework Flow Procedure
+  Status: missing
+  Confidence: 0.0%
+  Reason: Requires manual entry — not in PDF and no historical match.
+  Attempted labels: rework flow, rework, procedure, flow, rework procedure
+  Alternative: manual_entry
+
+✓ Date Code
+  Value: 2542, 2543, 2544, 2547, 2621
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: date code, datecode, dc code, lot date, date codes
+
+✓ Dc Bau
+  Value: MA005961215, MA005963910, MA006024185, MA006029207, MA006032543
+  Status: found
+  Confidence: 95.0%
+  Source: pdf
+  Reason: Extracted from PDF.
+  Attempted labels: dc bau, dc_bau, finished prod, finished product, material no, material number
+
+✗ Test Bau
+  Status: missing
+  Confidence: 0.0%
+  Reason: Requires manual entry — not in PDF and no historical match.
+  Attempted labels: test bau, test_bau, test lot, test batch
+  Alternative: manual_entry

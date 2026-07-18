@@ -11,6 +11,7 @@ import {
   saveToMasterfile,
   uploadPdfs,
   removeUploadedFile as removeUploadedFileApi,
+  removeReviewRecords as removeReviewRecordsApi,
   type DuplicateAction,
   type ExtractedRecord,
   type LockStatus,
@@ -83,6 +84,7 @@ interface AppContextValue {
   refreshDashboard: () => Promise<void>;
   handleFilesSelected: (files: File[]) => Promise<void>;
   removeUploadedFile: (filename: string) => Promise<void>;
+  removeReviewRecords: (recordIds: string[]) => Promise<void>;
   handleProcess: () => Promise<void>;
   handleSave: () => Promise<void>;
   setRecordEdits: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>;
@@ -422,6 +424,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const purgeRecordIds = useCallback((removedIds: Set<string>, nextRecords: ExtractedRecord[]) => {
+    if (!removedIds.size) return;
+    setRecordEdits((edits) => {
+      const copy = { ...edits };
+      removedIds.forEach((id) => delete copy[id]);
+      return copy;
+    });
+    setDuplicateActions((actions) => {
+      const copy = { ...actions };
+      removedIds.forEach((id) => delete copy[id]);
+      return copy;
+    });
+    setSelectedRowIds((rows) => {
+      const copy = { ...rows };
+      removedIds.forEach((id) => delete copy[id]);
+      return copy;
+    });
+    if (selectedRecordId && removedIds.has(selectedRecordId)) {
+      setSelectedRecordId(nextRecords[0]?.record_id ?? null);
+    }
+    if (duplicateModalRecordId && removedIds.has(duplicateModalRecordId)) {
+      setDuplicateModalRecordId(null);
+    }
+    if (nextRecords.length === 0) {
+      setReviewMode(false);
+      setRecordEdits({});
+      setDuplicateActions({});
+      setSelectedRowIds({});
+      setSelectedRecordId(null);
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    }
+  }, [selectedRecordId, duplicateModalRecordId]);
+
   const removeUploadedFile = useCallback(async (filename: string) => {
     if (isReadOnly) return;
     try {
@@ -432,41 +467,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prev.filter((r) => r.filename === filename).map((r) => r.record_id).filter(Boolean) as string[]
         );
         const next = prev.filter((r) => r.filename !== filename);
-        if (removedIds.size) {
-          setRecordEdits((edits) => {
-            const copy = { ...edits };
-            removedIds.forEach((id) => delete copy[id]);
-            return copy;
-          });
-          setDuplicateActions((actions) => {
-            const copy = { ...actions };
-            removedIds.forEach((id) => delete copy[id]);
-            return copy;
-          });
-          setSelectedRowIds((rows) => {
-            const copy = { ...rows };
-            removedIds.forEach((id) => delete copy[id]);
-            return copy;
-          });
-          if (selectedRecordId && removedIds.has(selectedRecordId)) {
-            setSelectedRecordId(next[0]?.record_id ?? null);
-          }
-        }
-        if (next.length === 0) {
-          setReviewMode(false);
-          setRecordEdits({});
-          setDuplicateActions({});
-          setSelectedRowIds({});
-          setSelectedRecordId(null);
-          localStorage.removeItem(DRAFT_STORAGE_KEY);
-        }
+        purgeRecordIds(removedIds, next);
         return next;
       });
     } catch (err) {
       const text = err instanceof Error ? err.message : 'Could not remove file';
       setMessage({ type: 'error', text });
     }
-  }, [isReadOnly, selectedRecordId]);
+  }, [isReadOnly, purgeRecordIds]);
+
+  const removeReviewRecords = useCallback(async (recordIds: string[]) => {
+    if (isReadOnly || !recordIds.length) return;
+    const label = recordIds.length === 1 ? 'this record' : `${recordIds.length} records`;
+    if (!confirm(`Remove ${label} from review? This cannot be undone.`)) return;
+    try {
+      await removeReviewRecordsApi(recordIds);
+      const idSet = new Set(recordIds);
+      setRecords((prev) => {
+        const next = prev.filter((r) => r.record_id && !idSet.has(r.record_id));
+        purgeRecordIds(idSet, next);
+        return next;
+      });
+      setMessage({ type: 'success', text: `Removed ${recordIds.length} record(s) from review.` });
+      pushNotification(makeNotification('info', 'Record removed', `${recordIds.length} record(s) removed from review.`));
+    } catch (err) {
+      const text = err instanceof Error ? err.message : 'Could not remove record(s)';
+      setMessage({ type: 'error', text });
+    }
+  }, [isReadOnly, purgeRecordIds, pushNotification]);
 
   const handleProcess = async () => {
     if (uploadedFiles.length === 0) {
@@ -676,6 +704,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshDashboard,
     handleFilesSelected,
     removeUploadedFile,
+    removeReviewRecords,
     handleProcess,
     handleSave,
     setRecordEdits,

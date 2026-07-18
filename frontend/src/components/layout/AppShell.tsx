@@ -8,9 +8,9 @@ export function AppShell() {
   const { message, clearMessage } = useApp();
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
       <Sidebar />
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex min-h-0 flex-1 flex-col min-w-0">
         <Header />
         <main className="flex-1 overflow-auto p-4 md:p-6">
           {message && (
