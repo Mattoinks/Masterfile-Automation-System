@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
+import { fetchMasterfileRows } from '@/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,8 +22,7 @@ export function MasterfileGrid() {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/masterfile/rows?search=${encodeURIComponent(search)}&limit=200`);
-        setData(await res.json());
+        setData(await fetchMasterfileRows(search, 200));
       } finally {
         setLoading(false);
       }

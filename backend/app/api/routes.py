@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from app.api.deps import get_current_user, require_perm
@@ -141,7 +141,7 @@ async def upload_pdfs(
 
 @router.post("/process", response_model=ProcessResponse)
 def process_pdfs(
-    filenames: list[str] | None = None,
+    filenames: list[str] | None = Body(default=None),
     user: Annotated[dict, Depends(require_perm("process"))] = None,
 ):
     try:

@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Callable
 
 import fitz
-from rapidocr_onnxruntime import RapidOCR
 
 from config.settings import OCR_RENDER_SCALE
 
@@ -14,8 +13,19 @@ class OCRExtractionError(Exception):
     pass
 
 
+class OCRUnavailableError(OCRExtractionError):
+    """Raised when RapidOCR / ONNX deps are not installed."""
+
+
 @lru_cache(maxsize=1)
-def _get_ocr_engine() -> RapidOCR:
+def _get_ocr_engine():
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+    except ImportError as exc:
+        raise OCRUnavailableError(
+            "OCR dependencies are not installed. Install full requirements "
+            "(pip install -r requirements.txt) to process scanned/image-only PDFs."
+        ) from exc
     return RapidOCR()
 
 
@@ -53,6 +63,8 @@ def extract_text_with_ocr(
                 combined = "\n".join(text_parts)
                 if stop_when and combined.strip() and stop_when(combined):
                     return combined
+    except OCRUnavailableError:
+        raise
     except Exception as exc:
         raise OCRExtractionError(f"Failed to OCR PDF: {exc}") from exc
 

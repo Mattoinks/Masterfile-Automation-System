@@ -1,0 +1,19 @@
+# One service = full app (UI + API). Persistent disk for Excel/uploads/DBs.
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: rma-masterfile
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: rma-data
+      mountPath: /var/data
+      sizeGB: 5
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: STATIC_DIR
+        value: /app/static

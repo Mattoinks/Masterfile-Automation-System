@@ -1,9 +1,17 @@
+# Core API (required)
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 python-multipart>=0.0.12
+bcrypt>=4.2.0
+
+# PDF text extraction
 pdfplumber>=0.11.4
 PyMuPDF>=1.24.0
-pandas>=2.2.0
+
+# Excel masterfile
 openpyxl>=3.1.5
-rapidocr-onnxruntime>=1.3.0
-bcrypt>=4.2.0
+
+# OCR for scanned/image-only PDFs (heavy: OpenCV + ONNX ~200MB+ installed).
+# Required for full functionality on Railway/Render/VPS — do NOT deploy this stack to Vercel.
+rapidocr-onnxruntime>=1.2.0,<1.3.0; python_version>="3.13"
+rapidocr-onnxruntime>=1.3.0; python_version<"3.13"

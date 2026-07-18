@@ -1,6 +1,40 @@
+# Backend must not be bundled on Vercel (FastAPI + OCR deps exceed size limits).
+# Host the API on Railway, Render, or a VPS instead.
+backend/
+pyproject.toml
+
+# Runtime / generated data
+analyze/
+samples/
+storage/
+uploads/
+processed/
+logs/
+docs/
+
+# Virtual envs & caches
 venv/
 .venv/
 __pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Dependencies & VCS (installed/fetched during build)
+node_modules/
 .git/
 .vscode/
+.idea/
+.cursor/
+
+# Large / sensitive artifacts
 *.log
+*.pdf
+*.xlsx
+*.xls
+*.db
+*.tmp
+.env
+.env.*
+!.env.example

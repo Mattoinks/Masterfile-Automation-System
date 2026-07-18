@@ -250,6 +250,23 @@ function authHeaders(extra: HeadersInit = {}): HeadersInit {
   };
 }
 
+function formatApiError(detail: unknown, fallback: string): string {
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const parts = detail
+      .map((item) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && 'msg' in item) {
+          return String((item as { msg: unknown }).msg);
+        }
+        return null;
+      })
+      .filter(Boolean);
+    if (parts.length) return parts.join('; ');
+  }
+  return fallback;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 401) {
     setSessionToken(null);
@@ -257,7 +274,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(error.detail || 'Request failed');
+    throw new Error(formatApiError(error.detail, 'Request failed'));
   }
   return response.json();
 }
@@ -375,6 +392,22 @@ export async function fetchReferenceLookups(): Promise<Record<string, unknown>> 
 
 export async function fetchMasterfileMeta(): Promise<{ last_case_id: number }> {
   const response = await fetch(`${API_BASE}/masterfile/rows?limit=1`, { headers: authHeaders() });
+  return handleResponse(response);
+}
+
+export async function fetchMasterfileRows(
+  search = '',
+  limit = 200,
+): Promise<{
+  worksheet: string;
+  headers: { col: number; label: string }[];
+  rows: Record<string, unknown>[];
+  total: number;
+  last_case_id: number;
+}> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (search.trim()) params.set('search', search.trim());
+  const response = await fetch(`${API_BASE}/masterfile/rows?${params}`, { headers: authHeaders() });
   return handleResponse(response);
 }
 

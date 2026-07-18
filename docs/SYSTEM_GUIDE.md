@@ -73,7 +73,7 @@ The Excel file is the **single source of truth**. A SQLite index speeds up searc
 | Backend | FastAPI, Uvicorn |
 | PDF parsing | pdfplumber, PyMuPDF |
 | OCR (scanned PDFs) | RapidOCR |
-| Excel | openpyxl, pandas |
+| Excel | openpyxl |
 | Databases | SQLite (`auth.db`, `rma_index.db`) |
 | Auth | bcrypt password hashing, session tokens |
 
@@ -459,36 +459,25 @@ Open: **http://localhost:5173**
 
 ## 14. Deployment
 
-### Local (recommended for full functionality)
+### One deploy (recommended)
 
-Run backend + frontend together. Vite proxies API calls to the backend.
+Build the React app into the FastAPI image and serve UI + API from **one** URL:
 
-### Vercel (frontend only)
+| Host | How |
+|------|-----|
+| **Render** | Blueprint from `render.yaml` (Docker + disk at `/var/data`) |
+| **Railway** | Deploy repo; uses `Dockerfile` / `railway.json`; mount volume at `/data` |
+| **Docker** | `docker compose up --build` → http://localhost:8000 |
 
-| Setting | Value |
-|---------|-------|
-| Root Directory | `frontend` |
-| Build Command | `npm run build` |
-| Output Directory | `dist` |
+No `VITE_API_BASE` is required in production (`VITE_API_BASE=/api`, same origin).
 
-`frontend/vercel.json` handles SPA routing. Login and all features require a separately hosted backend and `VITE_API_BASE` environment variable.
+### Local development
 
-### Backend hosting
+Run backend (`uvicorn` on :8000) and frontend (`npm run dev` on :5173). Vite proxies `/api` to the backend.
 
-The backend is **not suited for Vercel** as-is because it uses:
+### Vercel (frontend-only, not recommended alone)
 
-- SQLite on disk
-- Excel read/write
-- PDF upload and OCR
-- Persistent `uploads/`, `processed/`, `storage/` folders
-
-Use **Railway**, **Render**, or a **VPS** for the API. Then set on Vercel:
-
-```
-VITE_API_BASE=https://your-backend-host.com/api
-```
-
-Redeploy after adding the environment variable.
+`vercel.json` can host the static UI, but you still need a separate API host and `VITE_API_BASE`. Prefer the single Docker deploy above.
 
 ---
 
@@ -496,7 +485,9 @@ Redeploy after adding the environment variable.
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
-| Request failed on Vercel | No backend deployed | Use localhost or deploy API + set `VITE_API_BASE` |
+| Request failed on Vercel | No backend / wrong API URL | Deploy API separately + set `VITE_API_BASE` |
+| Bundle size > 500 MB on Vercel | Python backend + OCR deps | Deploy frontend only; host API on Render/Railway |
+| Scanned PDF extract fails | OCR not installed | `pip install -r requirements.txt` (full, not lite) |
 | Excel locked | File open in Excel | Close the workbook |
 | Missing qty / date codes | OCR stopped too early | Restart backend (fixed in `pdf_extractor.py`) |
 | Case ID starts at 2 | Deleted row still counted | Fixed in `excel_layout.py` |

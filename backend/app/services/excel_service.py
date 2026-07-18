@@ -1,8 +1,9 @@
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 from app.services.excel_layout import (
     WorksheetLayout,
@@ -11,7 +12,17 @@ from app.services.excel_layout import (
     write_mapped_values,
 )
 from app.models.schemas import ExistingMasterRecord
-from config.settings import WORKSHEET_CONFIG_PATH, resolve_masterfile_path
+from config.settings import (
+    FIELD_MAPPING_PATH,
+    MASTERFILE_DIR,
+    MASTERFILE_FALLBACK,
+    MASTERFILE_PATH,
+    WORKSHEET_CONFIG_PATH,
+    resolve_masterfile_path,
+)
+
+# Shipped with the API so fresh deploys / empty disks can bootstrap.
+_PACKAGED_TEMPLATE = Path(__file__).resolve().parents[2] / "assets" / "master-template.xlsx"
 
 
 class ExcelServiceError(Exception):
@@ -48,11 +59,56 @@ class ExcelService:
         return worksheets[self.worksheet_name]
 
     def ensure_masterfile_exists(self) -> None:
-        if not self.masterfile_path.exists():
-            raise ExcelServiceError(
-                f"Master Excel template not found at {self.masterfile_path}. "
-                "Place your workbook in storage/masterfile/ (RMA_MASTER.xlsx or master-template.xlsx)."
-            )
+        """Ensure a usable master workbook exists (seed from packaged template if needed)."""
+        if resolve_masterfile_path().exists():
+            return
+
+        MASTERFILE_DIR.mkdir(parents=True, exist_ok=True)
+        if _PACKAGED_TEMPLATE.exists():
+            target = MASTERFILE_PATH if not MASTERFILE_FALLBACK.exists() else MASTERFILE_FALLBACK
+            if not target.exists():
+                shutil.copy2(_PACKAGED_TEMPLATE, target)
+            return
+
+        # Last resort: minimal workbook from field_mapping + worksheet_config
+        self._create_minimal_masterfile(MASTERFILE_PATH)
+
+    def _create_minimal_masterfile(self, path: Path) -> None:
+        with open(WORKSHEET_CONFIG_PATH, encoding="utf-8") as f:
+            ws_root = json.load(f)
+        with open(FIELD_MAPPING_PATH, encoding="utf-8") as f:
+            field_mapping = json.load(f)
+
+        headers: list[str] = []
+        seen: set[str] = set()
+        for aliases in field_mapping.get("pdf_to_excel_headers", {}).values():
+            if not aliases:
+                continue
+            label = str(aliases[0]).strip()
+            key = label.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            headers.append(label)
+
+        if not headers:
+            raise ExcelServiceError("Cannot bootstrap masterfile: field_mapping has no headers")
+
+        wb = Workbook()
+        # Remove default sheet; recreate configured worksheets
+        default = wb.active
+        wb.remove(default)
+        for name in ws_root.get("worksheets", {}).keys():
+            ws = wb.create_sheet(name)
+            for col, header in enumerate(headers, start=1):
+                ws.cell(row=1, column=col, value=header)
+        if not wb.sheetnames:
+            ws = wb.create_sheet("FY2526")
+            for col, header in enumerate(headers, start=1):
+                ws.cell(row=1, column=col, value=header)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        wb.save(path)
+        wb.close()
 
     def _open_workbook(self):
         self.ensure_masterfile_exists()

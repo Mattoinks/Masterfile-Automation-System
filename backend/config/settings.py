@@ -1,7 +1,23 @@
 import os
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+# backend/config/settings.py → repo root (local monorepo) or DATA_DIR (cloud disk)
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = _BACKEND_ROOT.parent
+
+
+def _resolve_base_dir() -> Path:
+    override = os.environ.get("DATA_DIR", "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    # Prefer monorepo layout when storage/ exists next to backend/
+    if (_REPO_ROOT / "storage").exists() or (_REPO_ROOT / "backend").exists():
+        return _REPO_ROOT
+    # Backend-only deploy (e.g. Render rootDir=backend): keep data beside the app
+    return _BACKEND_ROOT
+
+
+BASE_DIR = _resolve_base_dir()
 STORAGE_DIR = BASE_DIR / "storage"
 MASTERFILE_DIR = STORAGE_DIR / "masterfile"
 UPLOADS_DIR = BASE_DIR / "uploads"

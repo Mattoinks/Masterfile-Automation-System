@@ -1,0 +1,29 @@
+# One container = full app (frontend + backend)
+# Usage: docker compose up --build
+# Open http://localhost:8000
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATA_DIR: /data
+      STATIC_DIR: /app/static
+      PORT: "8000"
+    volumes:
+      - rma-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
+
+volumes:
+  rma-data:

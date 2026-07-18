@@ -1,28 +1,67 @@
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 venv/
 .venv/
-*.egg-info/
 
 # Node
 node_modules/
-dist/
+frontend/dist/
+frontend/dist-ssr/
+backend/static/
+*.local
 
-# Storage & uploads (keep structure, ignore runtime data)
-uploads/*.pdf
-processed/*.pdf
-logs/*.log
-logs/*.json
+# Runtime data (created dynamically; do not deploy)
+uploads/**
+!uploads/.gitkeep
+processed/**
+!processed/.gitkeep
+logs/**
+!logs/.gitkeep
+analyze/**
+!analyze/.gitkeep
+
+# Storage: keep folder structure, ignore runtime files
 storage/masterfile/*.xlsx
+storage/masterfile/*.xls
+!storage/masterfile/.gitkeep
 storage/index/*.db
-storage/backup/
+!storage/index/.gitkeep
+storage/backup/**
+!storage/backup/.gitkeep
 
-# IDE
+# Packaged seed template ships with the API (needed for empty DATA_DIR boots)
+!backend/assets/
+!backend/assets/master-template.xlsx
+
+# Samples & local analysis artifacts
+samples/**/*.pdf
+samples/**/*.png
+
+# Secrets
+.env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# IDE / OS
 .vscode/
 .idea/
 *.swp
-
-# OS
 .DS_Store
 Thumbs.db
+
+# Misc
+*.log
+*.tmp
+*.bak
