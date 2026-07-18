@@ -2,22 +2,22 @@
     "version": 2,
     "services": {
       "frontend": {
-        "root": "frontend",
+        "root": "frontend/",
         "framework": "vite"
       },
       "backend": {
-        "root": "backend",
-        "framework": "python" 
+        "root": "backend/",
+        "framework": "python"
       }
     },
     "rewrites": [
       {
         "source": "/api/(.*)",
-        "destination": "/backend/$1"
+        "destination": { "service": "backend" }
       },
       {
         "source": "/(.*)",
-        "destination": "/frontend/$1"
+        "destination": { "service": "frontend" }
       }
     ]
   }
