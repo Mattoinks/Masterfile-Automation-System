@@ -684,6 +684,10 @@ export interface Lot2526BreakdownRecord {
   disposition_or_ss_plan_name: string;
   date_attached_ss_plan: string;
   lw: string;
+  date_created: string;
+  created_date_code: string;
+  physical_lot_qty: string;
+  lot_code: string;
   filename: string;
 }
 

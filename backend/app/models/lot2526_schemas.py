@@ -9,9 +9,14 @@ from pydantic import BaseModel
 
 class Lot2526BreakdownRecord(BaseModel):
     """One draft/saved row covering columns A-H of the '2526' worksheet,
-    plus Created Lot# (column J) - deterministic from Original Label Lot
-    No., computed once at intake, editable in review, source of truth once
-    saved."""
+    plus Created Lot# (column J), Date Created (column I), and the Created
+    Lot#'s Date Code (column K) - all deterministic at intake time (from
+    Original Label Lot No. and today's date), computed once, editable in
+    review, source of truth once saved. Physical Lot Qty (column L) and Lot
+    Code (column M) have no extracted source - always blank by default,
+    but left editable here too in case they're already known at intake
+    time (usually they're filled in later via the 2526 Cases view, once
+    the physical split has actually happened)."""
 
     case_no: int | None = None
     record_id: str | None = None
@@ -23,6 +28,10 @@ class Lot2526BreakdownRecord(BaseModel):
     disposition_or_ss_plan_name: str = ""
     date_attached_ss_plan: str = ""
     lw: str = ""
+    date_created: str = ""
+    created_date_code: str = ""
+    physical_lot_qty: str = ""
+    lot_code: str = ""
     filename: str = ""
 
 

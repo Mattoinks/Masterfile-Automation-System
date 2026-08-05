@@ -11,6 +11,10 @@ const FIELD_LABELS: { key: keyof Lot2526BreakdownRecord; label: string }[] = [
   { key: 'date_code', label: 'Date code' },
   { key: 'return_qty_from_dc', label: 'Return Qty from DC' },
   { key: 'created_lot_no', label: 'Created Lot#' },
+  { key: 'date_created', label: 'Date Created' },
+  { key: 'created_date_code', label: 'Date Code (Created Lot#)' },
+  { key: 'physical_lot_qty', label: 'Physical Lot Qty' },
+  { key: 'lot_code', label: 'Lot Code' },
   { key: 'disposition_or_ss_plan_name', label: 'Disposition or SS Plan Name' },
   { key: 'date_attached_ss_plan', label: 'Date attached SS Plan' },
   { key: 'lw', label: 'LW' },
@@ -54,6 +58,10 @@ export function Lot2526ReviewSection() {
                     <div key={key} className="space-y-1">
                       <label className="text-xs font-medium text-slate-500">{label}</label>
                       <Input
+                        type={key === 'date_created' ? 'date' : key === 'physical_lot_qty' ? 'number' : undefined}
+                        inputMode={key === 'physical_lot_qty' ? 'numeric' : undefined}
+                        min={key === 'physical_lot_qty' ? '0' : undefined}
+                        step={key === 'physical_lot_qty' ? '1' : undefined}
                         value={(draft[key] as string) || ''}
                         onChange={(e) => draft.record_id && updateLot2526Draft(draft.record_id, key, e.target.value)}
                       />

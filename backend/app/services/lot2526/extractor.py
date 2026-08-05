@@ -4,6 +4,7 @@ position-based lot table reconstruction (lot_table_extractor.py) - does not
 add a new PDF parser of its own.
 """
 
+from datetime import date
 from typing import Any
 
 # RETOU lot number creation criteria (1st-time split): tens digit of the
@@ -62,13 +63,21 @@ def map_dn_to_breakdown_rows(dn_data: dict[str, Any]) -> list[dict[str, str]]:
     from then on (the Cases page later displays/edits it, never
     regenerates it).
 
-    disposition_or_ss_plan_name, date_attached_ss_plan, and lw have no
+    disposition_or_ss_plan_name, lw, physical_lot_qty, and lot_code have no
     corresponding extracted field, so they are always left blank rather
-    than guessed or inferred - they're manual engineer fields for a later
-    phase.
+    than guessed or inferred - they're editable manual fields
+    (physical_lot_qty/lot_code in case they're already known at intake;
+    the other two firmly belong to a later phase).
+
+    date_created and created_date_code are deterministic at intake time
+    (unlike physical_lot_qty/lot_code, which usually depend on a physical
+    split that hasn't happened yet): date_created is simply today's date
+    (the date this breakdown row is being created), and created_date_code
+    is the same date code as the original lot line it was split from.
     """
     test_bau_list = dn_data.get("all_test_bau") or []
     test_bau = str(test_bau_list[0]) if test_bau_list else ""
+    today = date.today().isoformat()
 
     lot_table_rows = dn_data.get("lot_table_rows") or []
     if lot_table_rows:
@@ -93,6 +102,10 @@ def map_dn_to_breakdown_rows(dn_data: dict[str, Any]) -> list[dict[str, str]]:
             "disposition_or_ss_plan_name": "",
             "date_attached_ss_plan": "",
             "lw": "",
+            "date_created": today,
+            "created_date_code": row["date_code"],
+            "physical_lot_qty": "",
+            "lot_code": "",
         }
         for row in lot_rows
     ]

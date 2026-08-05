@@ -29,13 +29,13 @@ function rowToEntry(row: Lot2526CaseDetail['rows'][number]): Lot2526LotCreationE
   return {
     created_lot_no: row.created_lot_no || row.suggested_created_lot_no,
     date_created: row.date_created || TODAY,
-    created_date_code: row.created_date_code,
+    created_date_code: row.created_date_code || row.date_code,
     physical_lot_qty: row.physical_lot_qty,
     lot_code: row.lot_code,
   };
 }
 
-export function Lot2526CasesPage() {
+export function Lot2526CaseBrowser() {
   const { can } = useAuth();
   const [cases, setCases] = useState<Lot2526CaseSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,11 +130,10 @@ export function Lot2526CasesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">2526 Cases</h2>
+        <h3 className="text-lg font-bold">2526 Cases</h3>
         <p className="text-sm text-slate-500">
-          Created Lot# is generated automatically at intake from the Original Label Lot No. Edit it here if
-          needed, then fill in Date Created, Date Code, Physical Lot Qty, and Lot Code as physical sorting/testing
-          progresses.
+          Created Lot#, Date Created, and Date Code are generated automatically at intake. Edit them here if
+          needed, then fill in Physical Lot Qty and Lot Code once the physical sorting/testing happens.
         </p>
       </div>
 

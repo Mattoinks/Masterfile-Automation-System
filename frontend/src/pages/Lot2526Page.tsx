@@ -21,6 +21,10 @@ const EMPTY_RECORD: Lot2526BreakdownRecord = {
   disposition_or_ss_plan_name: '',
   date_attached_ss_plan: '',
   lw: '',
+  date_created: '',
+  created_date_code: '',
+  physical_lot_qty: '',
+  lot_code: '',
   filename: '',
 };
 
@@ -30,6 +34,10 @@ const FIELD_LABELS: { key: keyof Lot2526BreakdownRecord; label: string }[] = [
   { key: 'date_code', label: 'Date code' },
   { key: 'return_qty_from_dc', label: 'Return Qty from DC' },
   { key: 'created_lot_no', label: 'Created Lot#' },
+  { key: 'date_created', label: 'Date Created' },
+  { key: 'created_date_code', label: 'Date Code (Created Lot#)' },
+  { key: 'physical_lot_qty', label: 'Physical Lot Qty' },
+  { key: 'lot_code', label: 'Lot Code' },
   { key: 'disposition_or_ss_plan_name', label: 'Disposition or SS Plan Name' },
   { key: 'date_attached_ss_plan', label: 'Date attached SS Plan' },
   { key: 'lw', label: 'LW' },

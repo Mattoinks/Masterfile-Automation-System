@@ -7,6 +7,7 @@ import { RecordFullViewModal } from '@/components/review/RecordFullViewModal';
 import { ReviewToolbar } from '@/components/review/ReviewToolbar';
 import { ApprovalPanel } from '@/components/review/ApprovalPanel';
 import { Lot2526ReviewSection } from '@/components/review/Lot2526ReviewSection';
+import { Lot2526CaseBrowser } from '@/components/review/Lot2526CaseBrowser';
 import { DuplicateModal } from '@/components/duplicate/DuplicateModal';
 import { ExcelChangePreview } from '@/components/duplicate/ExcelChangePreview';
 import { useApp } from '@/context/AppContext';
@@ -15,6 +16,8 @@ import { useAuth } from '@/context/AuthContext';
 import { Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { FileSpreadsheet, Layers } from 'lucide-react';
 import type { DuplicateAction } from '@/api';
 
 export function PreviewPage() {
@@ -31,10 +34,12 @@ export function PreviewPage() {
     exactDuplicateCount,
     possibleDuplicateCount,
     activeWorksheet,
+    lot2526Drafts,
   } = useApp();
   const { can } = useAuth();
   const [modalAction, setModalAction] = useState<DuplicateAction>('skip');
   const [fullViewRecordId, setFullViewRecordId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'fy2526' | '2526'>('fy2526');
 
   const fullViewRecord = records.find((r) => r.record_id === fullViewRecordId);
   const fullViewIndex = fullViewRecord
@@ -97,24 +102,63 @@ export function PreviewPage() {
         <>
           <ReviewToolbar />
           <ApprovalPanel />
-          <ExcelChangePreview duplicateAction={modalAction} />
-          <ExcelRowPreview onExpand={() => {
-            const id = selectedRecordId || records[0]?.record_id;
-            if (id) setFullViewRecordId(id);
-          }} />
-          <SpreadsheetReview onExpandRecord={setFullViewRecordId} />
-          <Lot2526ReviewSection />
-          <FieldComparison />
         </>
       )}
 
-      {!records.length && (
-        <Card>
-          <CardContent className="py-16 text-center text-slate-500">
-            <p>No records in review.</p>
-            <p className="text-sm mt-2">Upload DN PDFs and run Extract & Validate to enter Review Mode.</p>
-          </CardContent>
-        </Card>
+      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-800">
+        {(
+          [
+            { key: 'fy2526' as const, label: 'FY2526', icon: FileSpreadsheet, count: records.length },
+            { key: '2526' as const, label: '2526', icon: Layers, count: lot2526Drafts.length },
+          ]
+        ).map(({ key, label, icon: Icon, count }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={cn(
+              'flex items-center gap-2 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-medium transition-colors -mb-px',
+              activeTab === key
+                ? 'border-slate-200 bg-white text-brand-700 dark:border-slate-800 dark:bg-slate-950 dark:text-brand-500'
+                : 'border-transparent text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/50'
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+            {count > 0 && (
+              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'fy2526' && (
+        records.length > 0 ? (
+          <>
+            <ExcelChangePreview duplicateAction={modalAction} />
+            <ExcelRowPreview onExpand={() => {
+              const id = selectedRecordId || records[0]?.record_id;
+              if (id) setFullViewRecordId(id);
+            }} />
+            <SpreadsheetReview onExpandRecord={setFullViewRecordId} />
+            <FieldComparison />
+          </>
+        ) : (
+          <Card>
+            <CardContent className="py-16 text-center text-slate-500">
+              <p>No records in review.</p>
+              <p className="text-sm mt-2">Upload DN PDFs and run Extract & Validate to enter Review Mode.</p>
+            </CardContent>
+          </Card>
+        )
+      )}
+
+      {activeTab === '2526' && (
+        <>
+          <Lot2526ReviewSection />
+          <Lot2526CaseBrowser />
+        </>
       )}
 
       {fullViewRecord?.record_id && (

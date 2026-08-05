@@ -139,9 +139,7 @@ class Lot2526ExcelWriter:
             groups.append(current_group)
         return groups
 
-    @staticmethod
-    def _write_case_group(ws, start_row: int, case_no: int, group: list[dict[str, Any]]) -> None:
-        created_lot_col = _LOT_CREATION_COLUMN_OFFSET + 1  # column J
+    def _write_case_group(self, ws, start_row: int, case_no: int, group: list[dict[str, Any]]) -> None:
         for i, fields in enumerate(group):
             row = start_row + i
             if i == 0:
@@ -157,12 +155,13 @@ class Lot2526ExcelWriter:
                 cell.alignment = _CELL_ALIGNMENT
                 if field == "date_attached_ss_plan":
                     cell.number_format = DATE_NUMBER_FORMAT
-            # Created Lot# (column J) is per-lot-line, unlike Test Bau -
-            # every row gets its own, computed once at intake.
-            created_lot_no = fields.get("created_lot_no")
-            if created_lot_no not in (None, ""):
-                cell = ws.cell(row=row, column=created_lot_col, value=created_lot_no)
-                cell.alignment = _CELL_ALIGNMENT
+            # Created Lot#, its Date Code, and Date Created (columns J/K/I)
+            # are per-lot-line, unlike Test Bau - every row gets its own,
+            # computed once at intake since they're deterministic from that
+            # same row's data. Physical Lot Qty/Lot Code stay blank here -
+            # `fields` won't have them yet, since they depend on a physical
+            # count/code that doesn't exist until later.
+            self._write_lot_creation_fields(ws, row, fields)
 
     @staticmethod
     def _write_subtotal_row(ws, row: int, group: list[dict[str, Any]]) -> None:
