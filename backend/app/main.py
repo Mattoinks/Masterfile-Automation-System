@@ -85,7 +85,7 @@ if _STATIC is not None:
     if assets.is_dir():
         app.mount("/assets", StaticFiles(directory=str(assets)), name="assets")
 
-    @app.get("/")
+    @app.api_route("/", methods=["GET", "HEAD"])
     async def spa_root():
         return FileResponse(_STATIC / "index.html")
 
