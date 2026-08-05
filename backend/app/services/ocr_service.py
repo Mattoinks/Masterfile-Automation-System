@@ -29,15 +29,45 @@ def _get_ocr_engine():
     return RapidOCR()
 
 
-def _render_page_text(page: fitz.Page, scale: float | None = None) -> str:
+def render_page_ocr_boxes(
+    page: fitz.Page,
+    scale: float | None = None,
+    cache: dict[int, list[tuple[list[list[float]], str]]] | None = None,
+) -> list[tuple[list[list[float]], str]]:
+    """Renders a page and runs OCR, keeping each detection's bounding box.
+
+    RapidOCR's own list order for a dense/borderless table is not reliable
+    reading order (columns can interleave) - callers that need to
+    reconstruct row/column structure should cluster on the box coordinates
+    themselves rather than trust this function's list order.
+
+    If `cache` is given (keyed by page.number), a page already OCR'd earlier
+    in the same request is returned from cache instead of being re-rendered
+    and re-OCR'd - a DN PDF's header-field pass and its lot-table pass both
+    need every page OCR'd, and without this they'd each pay for it separately.
+    """
+    if cache is not None and page.number in cache:
+        return cache[page.number]
+
     scale = OCR_RENDER_SCALE if scale is None else scale
     matrix = fitz.Matrix(scale, scale)
     pixmap = page.get_pixmap(matrix=matrix, alpha=False)
     ocr = _get_ocr_engine()
     result, _ = ocr(pixmap.tobytes("png"))
-    if not result:
-        return ""
-    return "\n".join(line[1] for line in result)
+    boxes = [(line[0], line[1]) for line in result] if result else []
+
+    if cache is not None:
+        cache[page.number] = boxes
+    return boxes
+
+
+def _render_page_text(
+    page: fitz.Page,
+    scale: float | None = None,
+    cache: dict[int, list[tuple[list[list[float]], str]]] | None = None,
+) -> str:
+    boxes = render_page_ocr_boxes(page, scale, cache)
+    return "\n".join(text for _, text in boxes)
 
 
 def extract_text_with_ocr(
@@ -46,6 +76,7 @@ def extract_text_with_ocr(
     max_pages: int = 3,
     stop_when: Callable[[str], bool] | None = None,
     on_page: Callable[[int, int], None] | None = None,
+    cache: dict[int, list[tuple[list[list[float]], str]]] | None = None,
 ) -> str:
     """OCR fallback for scanned/image-only DN PDFs."""
     text_parts: list[str] = []
@@ -57,7 +88,7 @@ def extract_text_with_ocr(
                     break
                 if on_page:
                     on_page(index + 1, page_limit)
-                page_text = _render_page_text(page)
+                page_text = _render_page_text(page, cache=cache)
                 if page_text.strip():
                     text_parts.append(page_text)
                 combined = "\n".join(text_parts)

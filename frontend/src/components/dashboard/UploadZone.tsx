@@ -35,6 +35,7 @@ export function UploadZone() {
     records,
     onFilesSelected,
     onRemoveFile,
+    onRemoveAllFiles,
     isUploading,
     uploadProgress,
     isProcessing,
@@ -50,6 +51,7 @@ export function UploadZone() {
 
   const [dragging, setDragging] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [removingAll, setRemovingAll] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback(
@@ -67,6 +69,15 @@ export function UploadZone() {
       await onRemoveFile(filename);
     } finally {
       setRemoving(null);
+    }
+  };
+
+  const handleRemoveAll = async () => {
+    setRemovingAll(true);
+    try {
+      await onRemoveAllFiles();
+    } finally {
+      setRemovingAll(false);
     }
   };
 
@@ -110,7 +121,24 @@ export function UploadZone() {
         )}
 
         {uploadedFiles.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">{uploadedFiles.length} file(s) queued</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+              disabled={isUploading || isProcessing || removingAll}
+              onClick={handleRemoveAll}
+            >
+              {removingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+              Remove All
+            </Button>
+          </div>
+        )}
+
+        {uploadedFiles.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
             {uploadedFiles.map((f) => {
               const record = recordByFile.get(f.name);
               const status = fileStatus(record, isProcessing);
@@ -169,6 +197,7 @@ function useUploadProps() {
     records,
     handleFilesSelected,
     removeUploadedFile,
+    removeAllUploadedFiles,
     isUploading,
     uploadProgress,
     isProcessing,
@@ -178,6 +207,7 @@ function useUploadProps() {
     records,
     onFilesSelected: handleFilesSelected,
     onRemoveFile: removeUploadedFile,
+    onRemoveAllFiles: removeAllUploadedFiles,
     isUploading,
     uploadProgress,
     isProcessing,

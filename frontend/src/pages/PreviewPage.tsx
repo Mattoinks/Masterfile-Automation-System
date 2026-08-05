@@ -6,6 +6,7 @@ import { FieldComparison } from '@/components/review/FieldComparison';
 import { RecordFullViewModal } from '@/components/review/RecordFullViewModal';
 import { ReviewToolbar } from '@/components/review/ReviewToolbar';
 import { ApprovalPanel } from '@/components/review/ApprovalPanel';
+import { Lot2526ReviewSection } from '@/components/review/Lot2526ReviewSection';
 import { DuplicateModal } from '@/components/duplicate/DuplicateModal';
 import { ExcelChangePreview } from '@/components/duplicate/ExcelChangePreview';
 import { useApp } from '@/context/AppContext';
@@ -102,6 +103,7 @@ export function PreviewPage() {
             if (id) setFullViewRecordId(id);
           }} />
           <SpreadsheetReview onExpandRecord={setFullViewRecordId} />
+          <Lot2526ReviewSection />
           <FieldComparison />
         </>
       )}

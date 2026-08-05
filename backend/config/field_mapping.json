@@ -2,7 +2,7 @@
   "pdf_to_excel_headers": {
     "case_id": ["Case_ID", "No"],
     "fy": ["FY"],
-    "dn_date": ["Date Create Q lot no.", "Date Q lot no. Create"],
+    "dn_date": ["DN Creation Date", "Date Create Q lot no.", "Date Q lot no. Create"],
     "data_source": ["Data source"],
     "rma_number": ["QMR/SAP no./Jira", "QMR/SAP no."],
     "store_received": ["STORE Received", "STORE Receive"],

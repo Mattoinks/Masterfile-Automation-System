@@ -150,6 +150,7 @@ export interface ProcessResponse {
   duplicates: number;
   exact_duplicates: number;
   possible_duplicates: number;
+  lot2526_drafts: Lot2526BreakdownRecord[];
 }
 
 export interface Stats {
@@ -176,6 +177,8 @@ export interface SaveResponse {
   force_inserted: number;
   errors: string[];
   backup_file: string | null;
+  lot2526_saved_case_numbers: number[];
+  lot2526_errors: string[];
 }
 
 export interface LogEntry {
@@ -432,6 +435,14 @@ export async function resetMasterfile(): Promise<{ removed_rows: number; backup_
   return handleResponse(response);
 }
 
+export async function resetLot2526Masterfile(): Promise<{ removed_rows: number; backup_file: string | null }> {
+  const response = await fetch(`${API_BASE}/2526/reset`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handleResponse(response);
+}
+
 export async function advancedSearch(params: {
   case_id?: string;
   dn_number?: string;
@@ -507,6 +518,11 @@ export async function removeUploadedFile(filename: string): Promise<void> {
   await handleResponse(response);
 }
 
+export async function clearUploads(): Promise<void> {
+  const response = await fetch(`${API_BASE}/uploads`, { method: 'DELETE', headers: authHeaders() });
+  await handleResponse(response);
+}
+
 export interface ProcessProgress {
   active: boolean;
   total: number;
@@ -537,12 +553,16 @@ export async function removeReviewRecords(recordIds: string[]): Promise<{ remove
 }
 
 export async function saveToMasterfile(
-  records: { record_id: string; duplicate_action: DuplicateAction; overrides?: Record<string, string> }[]
+  records: { record_id: string; duplicate_action: DuplicateAction; overrides?: Record<string, string> }[],
+  lot2526Drafts: Lot2526BreakdownRecord[] = []
 ): Promise<SaveResponse> {
   const response = await fetch(`${API_BASE}/save`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ records }),
+    body: JSON.stringify({
+      records,
+      ...(lot2526Drafts.length ? { lot2526_drafts: lot2526Drafts } : {}),
+    }),
   });
   return handleResponse<SaveResponse>(response);
 }
@@ -648,6 +668,134 @@ export async function fetchExtractionLog(dnNumber: string): Promise<{ dn_number:
     headers: authHeaders(),
   });
   return handleResponse(response);
+}
+
+// --- 2526 masterfile module (Phase 1: DN breakdown only) ---
+// Independent from the FY2526 endpoints above; own upload/process/save flow.
+
+export interface Lot2526BreakdownRecord {
+  case_no: number | null;
+  record_id: string | null;
+  test_bau: string;
+  original_label_lot_no: string;
+  date_code: string;
+  return_qty_from_dc: string;
+  created_lot_no: string;
+  disposition_or_ss_plan_name: string;
+  date_attached_ss_plan: string;
+  lw: string;
+  filename: string;
+}
+
+export interface Lot2526ProcessResponse {
+  drafts: Lot2526BreakdownRecord[];
+  errors: string[];
+}
+
+export interface Lot2526SaveResponse {
+  saved_case_numbers: number[];
+  errors: string[];
+}
+
+export async function uploadLot2526Pdfs(files: File[]): Promise<{ uploaded: string[]; count: number }> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+  const response = await fetch(`${API_BASE}/2526/upload`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: formData,
+  });
+  return handleResponse(response);
+}
+
+export async function processLot2526Pdfs(): Promise<Lot2526ProcessResponse> {
+  const response = await fetch(`${API_BASE}/2526/process`, { method: 'POST', headers: authHeaders() });
+  return handleResponse<Lot2526ProcessResponse>(response);
+}
+
+export async function saveLot2526Records(
+  records: Lot2526BreakdownRecord[]
+): Promise<Lot2526SaveResponse> {
+  const response = await fetch(`${API_BASE}/2526/save`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ records }),
+  });
+  return handleResponse<Lot2526SaveResponse>(response);
+}
+
+export interface Lot2526CaseSummary {
+  case_no: number;
+  test_bau: string;
+  lot_line_count: number;
+  lot_creation_count: number;
+  total_return_qty: number;
+}
+
+export interface Lot2526LotCreationEntry {
+  created_lot_no: string;
+  date_created: string;
+  created_date_code: string;
+  physical_lot_qty: string;
+  lot_code: string;
+}
+
+export interface Lot2526CaseRow {
+  row_index: number;
+  original_label_lot_no: string;
+  date_code: string;
+  return_qty_from_dc: string;
+  created_lot_no: string;
+  suggested_created_lot_no: string;
+  date_created: string;
+  created_date_code: string;
+  physical_lot_qty: string;
+  lot_code: string;
+}
+
+export interface Lot2526CaseDetail {
+  case_no: number;
+  test_bau: string;
+  rows: Lot2526CaseRow[];
+}
+
+export async function fetchLot2526Cases(): Promise<Lot2526CaseSummary[]> {
+  const response = await fetch(`${API_BASE}/2526/cases`, { headers: authHeaders() });
+  return handleResponse<Lot2526CaseSummary[]>(response);
+}
+
+export async function fetchLot2526CaseDetail(caseNo: number): Promise<Lot2526CaseDetail> {
+  const response = await fetch(`${API_BASE}/2526/cases/${caseNo}`, { headers: authHeaders() });
+  return handleResponse<Lot2526CaseDetail>(response);
+}
+
+// Secondary action: inserts a brand-new row for a case that needs an extra
+// lot-creation entry beyond its 1:1 original-lot mapping (e.g. a merged-wafer split).
+export async function appendLot2526Entry(
+  caseNo: number,
+  entry: Lot2526LotCreationEntry
+): Promise<Lot2526CaseDetail> {
+  const response = await fetch(`${API_BASE}/2526/cases/${caseNo}/lot-entries`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(entry),
+  });
+  return handleResponse<Lot2526CaseDetail>(response);
+}
+
+// Primary action: edits an existing row's Created Lot# and the fields that
+// can only be known once the physical split has happened, in place.
+export async function updateLot2526RowLotCreation(
+  caseNo: number,
+  rowIndex: number,
+  entry: Lot2526LotCreationEntry
+): Promise<Lot2526CaseDetail> {
+  const response = await fetch(`${API_BASE}/2526/cases/${caseNo}/rows/${rowIndex}/lot-creation`, {
+    method: 'PATCH',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(entry),
+  });
+  return handleResponse<Lot2526CaseDetail>(response);
 }
 
 export const DUPLICATE_ACTION_LABELS: Record<DuplicateAction, string> = {

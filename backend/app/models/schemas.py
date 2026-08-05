@@ -6,6 +6,8 @@ from typing import Optional, Any
 
 from pydantic import BaseModel, Field
 
+from app.models.lot2526_schemas import Lot2526BreakdownRecord
+
 
 
 
@@ -228,6 +230,8 @@ class ExtractedRecord(BaseModel):
 
     record_id: Optional[str] = None
 
+    parsed_dn: dict[str, Any] = Field(default_factory=dict, exclude=True)
+
 
 
 
@@ -247,6 +251,8 @@ class ProcessResponse(BaseModel):
     exact_duplicates: int = 0
 
     possible_duplicates: int = 0
+
+    lot2526_drafts: list[Lot2526BreakdownRecord] = Field(default_factory=list)
 
 
 
@@ -272,6 +278,8 @@ class SaveRequest(BaseModel):
 
     user: str = "System"
 
+    lot2526_drafts: Optional[list[Lot2526BreakdownRecord]] = None
+
 
 class RemoveRecordsRequest(BaseModel):
     record_ids: list[str] = Field(default_factory=list)
@@ -295,6 +303,10 @@ class SaveResponse(BaseModel):
     errors: list[str] = []
 
     backup_file: Optional[str] = None
+
+    lot2526_saved_case_numbers: list[int] = Field(default_factory=list)
+
+    lot2526_errors: list[str] = Field(default_factory=list)
 
 
 

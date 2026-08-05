@@ -17,10 +17,6 @@
     "test_bau": ", ",
     "store_lot_qty": ", "
   },
-  "case_title": {
-    "fallback_template": "{customer} / Technical returns",
-    "use_historical_if_similarity_above": 0.35
-  },
   "similarity_weights": {
     "device": 10,
     "package": 8,

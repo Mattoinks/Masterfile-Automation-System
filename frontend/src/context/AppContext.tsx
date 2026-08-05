@@ -11,11 +11,13 @@ import {
   saveToMasterfile,
   uploadPdfs,
   removeUploadedFile as removeUploadedFileApi,
+  clearUploads as clearUploadsApi,
   removeReviewRecords as removeReviewRecordsApi,
   type DuplicateAction,
   type ExtractedRecord,
   type LockStatus,
   type LogEntry,
+  type Lot2526BreakdownRecord,
   type SaveResponse,
   type Stats,
 } from '@/api';
@@ -84,6 +86,7 @@ interface AppContextValue {
   refreshDashboard: () => Promise<void>;
   handleFilesSelected: (files: File[]) => Promise<void>;
   removeUploadedFile: (filename: string) => Promise<void>;
+  removeAllUploadedFiles: () => Promise<void>;
   removeReviewRecords: (recordIds: string[]) => Promise<void>;
   handleProcess: () => Promise<void>;
   handleSave: () => Promise<void>;
@@ -113,6 +116,8 @@ interface AppContextValue {
   lockStatus: LockStatus | null;
   exactDuplicateCount: number;
   possibleDuplicateCount: number;
+  lot2526Drafts: Lot2526BreakdownRecord[];
+  updateLot2526Draft: (recordId: string, field: keyof Lot2526BreakdownRecord, value: string) => void;
 }
 
 const defaultStats: Stats = {
@@ -138,7 +143,7 @@ function makeNotification(type: AppNotification['type'], title: string, message:
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { isReadOnly, user, isAuthenticated, userName } = useAuth();
+  const { isReadOnly, user, isAuthenticated } = useAuth();
   const [stats, setStats] = useState<Stats>(defaultStats);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [records, setRecords] = useState<ExtractedRecord[]>([]);
@@ -165,6 +170,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [lockStatus, setLockStatus] = useState<LockStatus | null>(null);
   const [exactDuplicateCount, setExactDuplicateCount] = useState(0);
   const [possibleDuplicateCount, setPossibleDuplicateCount] = useState(0);
+  const [lot2526Drafts, setLot2526Drafts] = useState<Lot2526BreakdownRecord[]>([]);
 
   const pushNotification = useCallback((n: AppNotification) => {
     setNotifications((prev) => [n, ...prev].slice(0, 20));
@@ -201,6 +207,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setRecordEdits(parsed.recordEdits || {});
           setDuplicateActions(parsed.duplicateActions || {});
           setUploadedFiles(parsed.uploadedFiles || []);
+          setLot2526Drafts(parsed.lot2526Drafts || []);
           setReviewMode(true);
           pushNotification(makeNotification('info', 'Draft restored', 'Incomplete review loaded from last session.'));
         }
@@ -221,12 +228,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           recordEdits,
           duplicateActions,
           uploadedFiles,
+          lot2526Drafts,
           savedAt: new Date().toISOString(),
         })
       );
     }, 30000);
     return () => clearInterval(interval);
-  }, [reviewMode, records, recordEdits, duplicateActions, uploadedFiles]);
+  }, [reviewMode, records, recordEdits, duplicateActions, uploadedFiles, lot2526Drafts]);
 
   const openDuplicateModal = useCallback((recordId: string) => {
     setDuplicateModalRecordId(recordId);
@@ -301,26 +309,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setFieldValue = useCallback(
     (recordId: string, field: string, value: string) => {
-      const rowEdits = { ...recordEdits[recordId], [field]: value };
-
-      if (field === 'rework_flow_procedure' && value.trim()) {
-        const record = records.find((r) => r.record_id === recordId);
-        const currentEngineer =
-          rowEdits.cause_owner ??
-          recordEdits[recordId]?.cause_owner ??
-          (record ? String(record.cause_owner || '') : '');
-        if (!currentEngineer.trim()) {
-          rowEdits.cause_owner = userName || user?.username || '';
-        }
-      }
-
       const next = {
         ...recordEdits,
-        [recordId]: rowEdits,
+        [recordId]: { ...recordEdits[recordId], [field]: value },
       };
       commitEdits(next);
     },
-    [recordEdits, commitEdits, records, userName, user],
+    [recordEdits, commitEdits],
   );
 
   const undo = useCallback(() => {
@@ -368,12 +363,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         recordEdits,
         duplicateActions,
         uploadedFiles,
+        lot2526Drafts,
         savedAt: new Date().toISOString(),
       })
     );
     setMessage({ type: 'success', text: 'Draft saved. You can continue review later.' });
     pushNotification(makeNotification('success', 'Draft saved', `${records.length} record(s) saved locally.`));
-  }, [records, recordEdits, duplicateActions, uploadedFiles, pushNotification]);
+  }, [records, recordEdits, duplicateActions, uploadedFiles, lot2526Drafts, pushNotification]);
 
   const toggleRowSelection = useCallback((id: string) => {
     setSelectedRowIds((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -426,6 +422,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const purgeRecordIds = useCallback((removedIds: Set<string>, nextRecords: ExtractedRecord[]) => {
     if (!removedIds.size) return;
+    setLot2526Drafts((drafts) => drafts.filter((d) => !d.record_id || !removedIds.has(d.record_id)));
     setRecordEdits((edits) => {
       const copy = { ...edits };
       removedIds.forEach((id) => delete copy[id]);
@@ -453,6 +450,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDuplicateActions({});
       setSelectedRowIds({});
       setSelectedRecordId(null);
+      setLot2526Drafts([]);
       localStorage.removeItem(DRAFT_STORAGE_KEY);
     }
   }, [selectedRecordId, duplicateModalRecordId]);
@@ -475,6 +473,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setMessage({ type: 'error', text });
     }
   }, [isReadOnly, purgeRecordIds]);
+
+  const removeAllUploadedFiles = useCallback(async () => {
+    if (isReadOnly || !uploadedFiles.length) return;
+    try {
+      await clearUploadsApi();
+      const filenames = new Set(uploadedFiles.map((f) => f.name));
+      setUploadedFiles([]);
+      setRecords((prev) => {
+        const removedIds = new Set(
+          prev.filter((r) => filenames.has(r.filename)).map((r) => r.record_id).filter(Boolean) as string[]
+        );
+        const next = prev.filter((r) => !filenames.has(r.filename));
+        purgeRecordIds(removedIds, next);
+        return next;
+      });
+    } catch (err) {
+      const text = err instanceof Error ? err.message : 'Could not remove files';
+      setMessage({ type: 'error', text });
+    }
+  }, [isReadOnly, uploadedFiles, purgeRecordIds]);
 
   const removeReviewRecords = useCallback(async (recordIds: string[]) => {
     if (isReadOnly || !recordIds.length) return;
@@ -525,6 +543,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const result = await processPdfs();
       setRecords(result.records);
+      setLot2526Drafts(result.lot2526_drafts || []);
       setExactDuplicateCount(result.exact_duplicates);
       setPossibleDuplicateCount(result.possible_duplicates);
       setRecordEdits({});
@@ -627,22 +646,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
         duplicate_action: duplicateActions[r.record_id!] || 'skip',
         overrides: recordEdits[r.record_id!] || {},
       }));
-      const result = await saveToMasterfile(payload);
+      const payloadIds = new Set(payload.map((p) => p.record_id));
+      const matchedDrafts = lot2526Drafts.filter((d) => d.record_id && payloadIds.has(d.record_id));
+      const result = await saveToMasterfile(payload, matchedDrafts);
       setLastSaveResult(result);
       let text = `Inserted ${result.inserted}, skipped ${result.skipped}, replaced ${result.replaced}`;
       if (result.revised) text += `, revised ${result.revised}`;
       if (result.force_inserted) text += `, force inserted ${result.force_inserted}`;
       text += '.';
+      if (result.lot2526_saved_case_numbers.length) {
+        text += ` 2526 rows saved: ${result.lot2526_saved_case_numbers.length}.`;
+      }
       if (result.backup_file) text += ` Backup: ${result.backup_file}.`;
       if (result.errors.length) text += ` Errors: ${result.errors.join('; ')}`;
-      setMessage({ type: result.errors.length ? 'error' : 'success', text });
-      pushNotification(makeNotification(result.errors.length ? 'error' : 'success', 'Insertion complete', text));
+      if (result.lot2526_errors.length) text += ` 2526 errors: ${result.lot2526_errors.join('; ')}`;
+      const hasErrors = result.errors.length > 0 || result.lot2526_errors.length > 0;
+      setMessage({ type: hasErrors ? 'error' : 'success', text });
+      pushNotification(makeNotification(hasErrors ? 'error' : 'success', 'Insertion complete', text));
       localStorage.removeItem(DRAFT_STORAGE_KEY);
       setRecords([]);
       setRecordEdits({});
       setReviewMode(false);
       setUploadedFiles([]);
       setSelectedRecordId(null);
+      setLot2526Drafts([]);
       await refreshDashboard();
     } catch (err) {
       const text = err instanceof Error ? err.message : 'Save failed';
@@ -652,6 +679,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setIsSaving(false);
     }
   };
+
+  const updateLot2526Draft = useCallback(
+    (recordId: string, field: keyof Lot2526BreakdownRecord, value: string) => {
+      setLot2526Drafts((prev) =>
+        prev.map((d) => (d.record_id === recordId ? { ...d, [field]: value } : d))
+      );
+    },
+    []
+  );
 
   const manuallyEditedCount = useMemo(
     () => records.filter((r) => r.record_id && recordEdits[r.record_id] && Object.keys(recordEdits[r.record_id]).length > 0).length,
@@ -704,6 +740,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshDashboard,
     handleFilesSelected,
     removeUploadedFile,
+    removeAllUploadedFiles,
     removeReviewRecords,
     handleProcess,
     handleSave,
@@ -733,6 +770,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     lockStatus,
     exactDuplicateCount,
     possibleDuplicateCount,
+    lot2526Drafts,
+    updateLot2526Draft,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

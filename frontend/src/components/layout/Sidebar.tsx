@@ -13,6 +13,7 @@ import {
   Search,
   Download,
   FileSearch,
+  Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
@@ -32,6 +33,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/upload', icon: Upload, label: 'Upload DN', permission: 'upload' },
     { to: '/preview', icon: Table2, label: 'Review Records', permission: 'process' },
     { to: '/masterfile', icon: FileSpreadsheet, label: 'Masterfile', permission: 'view' },
+    { to: '/2526/cases', icon: Layers, label: '2526 Cases', permission: 'view' },
     { to: '/history', icon: History, label: 'History', permission: 'view_logs' },
     { to: '/recycle-bin', icon: Trash2, label: 'Recycle Bin', permission: 'delete' },
     { to: '/users', icon: Users, label: 'User Management', permission: 'manage_users' },
@@ -43,11 +45,13 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { to: '/upload', icon: Upload, label: 'Upload DN', permission: 'upload' },
     { to: '/preview', icon: Table2, label: 'Review Records', permission: 'process' },
     { to: '/masterfile', icon: FileSpreadsheet, label: 'Masterfile', permission: 'view' },
+    { to: '/2526/cases', icon: Layers, label: '2526 Cases', permission: 'view' },
     { to: '/history', icon: History, label: 'History', permission: 'view_logs' },
   ],
   viewer: [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'view' },
     { to: '/masterfile', icon: FileSpreadsheet, label: 'Masterfile', permission: 'view' },
+    { to: '/2526/cases', icon: Layers, label: '2526 Cases', permission: 'view' },
     { to: '/search', icon: Search, label: 'Search', permission: 'search' },
     { to: '/history', icon: ScrollText, label: 'History', permission: 'view_logs' },
     { to: '/download', icon: Download, label: 'Download', permission: 'download' },

@@ -43,7 +43,11 @@ def _page_count(pdf_path: Path) -> int:
         return doc.page_count
 
 
-def _extract_text(pdf_path: Path, on_progress: ProgressCallback | None = None) -> str:
+def _extract_text(
+    pdf_path: Path,
+    on_progress: ProgressCallback | None = None,
+    ocr_cache: dict[int, list[tuple[list[list[float]], str]]] | None = None,
+) -> str:
     """Extract full document text — every page, no early stop."""
     if on_progress:
         on_progress("reading", "Reading PDF text…")
@@ -75,6 +79,7 @@ def _extract_text(pdf_path: Path, on_progress: ProgressCallback | None = None) -
                 max_pages=page_total,
                 stop_when=None,
                 on_page=on_page,
+                cache=ocr_cache,
             )
             if on_progress:
                 on_progress("parsing", "Parsing OCR text…")
@@ -276,9 +281,21 @@ def _extract_rma_quantity(text: str) -> str:
     return ""
 
 
+def _split_glued_words(raw: str) -> str:
+    """PDF text extraction sometimes drops spaces between adjacent runs
+    (e.g. 'AttentiontoArandiaMarkDavis'). Insert a space wherever a
+    lowercase/digit character is immediately followed by an uppercase one,
+    so word-boundary heuristics downstream see real word counts."""
+    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", raw)
+
+
 def _clean_owner_name(raw: str) -> str:
-    name = re.sub(r"\s+", " ", raw).strip()
+    name = _split_glued_words(raw)
+    name = re.sub(r"\s+", " ", name).strip()
     name = re.sub(r"\s*\([^)]*\)\s*", "", name).strip()
+    # Strip a leading "to" left over from "Attention to X" phrasing when
+    # there's no colon separating the label from the name.
+    name = re.sub(r"^to\s+", "", name, flags=re.IGNORECASE)
     if name.lower() in ("special instructions", "prepared", "n/a"):
         return ""
     return name
@@ -485,7 +502,15 @@ def _parse_infineon_dn(text: str, filename_bau: str = "") -> dict[str, Any]:
 
     rma_number = _search_pattern(
         text,
-        [r"RMA\s*:\s*([\d]+-[\d]+)", r"(QMR\s+\d{2}-\d+)"],
+        [
+            r"RMA\s*:\s*([\d]+-[\d]+)",
+            r"(QMR\s+\d{2}-\d+)",
+            r"RMA\s+(\d{6,}-\d+)",
+            # Fallback: the "RMA" label itself sometimes doesn't survive PDF
+            # text extraction on multi-line wrapped RMA lists, but the last
+            # RMA number right before the "Attention" contact line does.
+            r"(\d{9,}-\d{2,3})\s*Attention",
+        ],
     )
 
     customer_name = _format_customer_name(
@@ -627,7 +652,12 @@ def extract_dn_data(
     if not pdf_path.exists():
         raise PDFExtractionError(f"File not found: {pdf_path}")
 
-    text = _extract_text(pdf_path, on_progress=on_progress)
+    # Shared across this call's header-field OCR pass and the lot-table OCR
+    # pass below - both need every page OCR'd, so whichever runs first pays
+    # for it and the other reuses the result instead of OCR-ing it again.
+    ocr_cache: dict[int, list[tuple[list[list[float]], str]]] = {}
+
+    text = _extract_text(pdf_path, on_progress=on_progress, ocr_cache=ocr_cache)
     filename_bau = _bau_from_filename(pdf_path)
 
     dn_from_filename = ""
@@ -661,6 +691,15 @@ def extract_dn_data(
 
     data["source_files"] = [pdf_path.name]
     data["page_count"] = _page_count(pdf_path)
+
+    # Deferred import to avoid a circular import (lot_table_extractor
+    # reuses _is_valid_lot_number/_parse_qty_number from this module).
+    from app.services.lot2526.lot_table_extractor import extract_lot_table_rows
+    try:
+        data["lot_table_rows"] = extract_lot_table_rows(pdf_path, ocr_cache=ocr_cache)
+    except Exception:
+        data["lot_table_rows"] = []
+
     return data
 
 

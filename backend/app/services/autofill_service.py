@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime
 from difflib import SequenceMatcher
 from typing import Any
@@ -142,8 +141,8 @@ class AutofillService:
     ) -> None:
         copy_fields = [
             "owner", "gf", "package", "type_of_return", "dc", "dc_bau", "test_bau",
-            "vkl_bau", "rework_flow_procedure", "cause_owner", "case_title", "data_source",
-        ]
+            "vkl_bau", "rework_flow_procedure", "cause_owner", "data_source",
+        ]  # case_title intentionally excluded - always manual, never auto-filled
         for key in copy_fields:
             if not record.get(key) and match.get(key):
                 record[key] = match[key]
@@ -225,31 +224,10 @@ class AutofillService:
         sources: dict[str, FieldSource],
         match: dict[str, Any] | None,
     ) -> None:
-        if record.get("case_title") and sources.get("case_title") in ("history", "pdf"):
-            return
-
-        if match and match.get("case_title"):
-            record["case_title"] = match["case_title"]
-            sources["case_title"] = "history"
-            return
-
-        template = self.rules.get("case_title", {}).get(
-            "fallback_template", "{customer} / Technical returns"
-        )
-        customer = record.get("customer_name", "UNKNOWN")
-        prefix = self._customer_prefix(customer)
-        record["case_title"] = template.format(customer=prefix)
-        sources["case_title"] = "derived"
-
-    @staticmethod
-    def _customer_prefix(customer: str) -> str:
-        cleaned = re.sub(r"\s+", " ", customer).strip().upper()
-        for token in ("PTE LTD.", "PTE LTD", "LTD.", "LIMITED", "SINGAPORE"):
-            cleaned = cleaned.replace(token, "").strip()
-        words = cleaned.split()
-        if not words:
-            return "UNKNOWN"
-        return "".join(words[:3])
+        """Case Title is a required manual field - never auto-filled from a
+        template or historical match. Left blank; _mark_required() flags it
+        for the engineer to fill in."""
+        return
 
     def _mark_required(self, record: dict[str, Any], sources: dict[str, FieldSource]) -> None:
         for key in self.rules.get("required_manual_fields", []):

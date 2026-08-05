@@ -48,7 +48,7 @@ AUTH_DB_PATH = INDEX_DIR / "auth.db"
 PDF_PROCESS_WORKERS = int(os.environ.get("PDF_PROCESS_WORKERS", "0")) or min(
     16, max(4, (os.cpu_count() or 4))
 )
-OCR_RENDER_SCALE = float(os.environ.get("OCR_RENDER_SCALE", "1.5"))
+OCR_RENDER_SCALE = float(os.environ.get("OCR_RENDER_SCALE", "2.5"))
 
 
 def resolve_masterfile_path() -> Path:

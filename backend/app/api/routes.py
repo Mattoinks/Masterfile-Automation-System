@@ -14,6 +14,7 @@ from app.models.schemas import (
     LockStatusResponse,
     PreviewSaveRequest,
     ProcessResponse,
+    RecordStatus,
     RemoveRecordsRequest,
     SaveRequest,
     SaveResponse,
@@ -21,11 +22,14 @@ from app.models.schemas import (
     StatsResponse,
     UpdateRecordRequest,
 )
+from app.models.lot2526_schemas import Lot2526BreakdownRecord
 from app.services.analytics_service import AnalyticsService
 from app.services.audit_logger import AuditLogger
 from app.services.backup_service import BackupService
 from app.services.excel_service import ExcelService
 from app.services.lock_service import ExcelLockService
+from app.services.lot2526.excel_writer import Lot2526ExcelError, Lot2526ExcelWriter
+from app.services.lot2526.extractor import map_dn_to_breakdown_rows
 from app.services.permissions import has_permission
 from app.services.pdf_analysis_service import PdfAnalysisService
 from app.services.processing_progress import get_processing_progress
@@ -41,6 +45,14 @@ backup_service = BackupService()
 lock_service = ExcelLockService()
 analytics_service = AnalyticsService()
 pdf_analysis_service = PdfAnalysisService()
+lot2526_excel_writer = Lot2526ExcelWriter()
+
+_WRITTEN_STATUSES = {
+    RecordStatus.INSERTED,
+    RecordStatus.REPLACED,
+    RecordStatus.REVISION,
+    RecordStatus.FORCE_INSERTED,
+}
 
 
 @router.get("/health")
@@ -145,9 +157,22 @@ def process_pdfs(
     user: Annotated[dict, Depends(require_perm("process"))] = None,
 ):
     try:
-        return processing_service.process_pdfs(filenames, user=user["username"])
+        response = processing_service.process_pdfs(filenames, user=user["username"])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    for record in response.records:
+        if not record.record_id:
+            continue
+        for breakdown_fields in map_dn_to_breakdown_rows(record.parsed_dn):
+            response.lot2526_drafts.append(
+                Lot2526BreakdownRecord(
+                    record_id=record.record_id,
+                    filename=record.filename,
+                    **breakdown_fields,
+                )
+            )
+    return response
 
 
 @router.get("/process/status")
@@ -186,9 +211,29 @@ def save_to_masterfile(
     if not request.records:
         raise HTTPException(status_code=400, detail="No records to save")
     try:
-        return processing_service.save_records(request.records, user=user["username"])
+        response = processing_service.save_records(request.records, user=user["username"])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if request.lot2526_drafts:
+        written_ids = {
+            req.record_id
+            for req in request.records
+            if (rec := processing_service.get_pending_record(req.record_id))
+            and rec.status in _WRITTEN_STATUSES
+        }
+        survivors = [d for d in request.lot2526_drafts if d.record_id in written_ids]
+        if survivors:
+            try:
+                backup_service.create_backup()
+                case_numbers = lot2526_excel_writer.append_breakdown_rows(
+                    [d.model_dump() for d in survivors]
+                )
+                response.lot2526_saved_case_numbers = case_numbers
+            except Lot2526ExcelError as exc:
+                response.lot2526_errors = [str(exc)]
+
+    return response
 
 
 # --- Record management (Steps 26, 36) ---

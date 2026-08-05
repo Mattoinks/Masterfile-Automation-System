@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth, ROLE_LABELS } from '@/context/AuthContext';
-import { fetchBackups, restoreBackup, resetMasterfile, fetchWorksheetConfig, fetchBusinessRules, fetchReferenceLookups, type BackupInfo } from '@/api';
+import { fetchBackups, restoreBackup, resetMasterfile, resetLot2526Masterfile, fetchWorksheetConfig, fetchBusinessRules, fetchReferenceLookups, type BackupInfo } from '@/api';
 import { useApp } from '@/context/AppContext';
 import { Lock, RotateCcw, Shield, Trash2 } from 'lucide-react';
 
@@ -16,6 +16,7 @@ export function SettingsPage() {
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [resetting2526, setResetting2526] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -60,6 +61,19 @@ export function SettingsPage() {
       alert(err instanceof Error ? err.message : 'Reset failed');
     } finally {
       setResetting(false);
+    }
+  };
+
+  const handleReset2526 = async () => {
+    if (!confirm('Remove ALL 2526 worksheet records and start fresh at No. 1? A backup will be created first.')) return;
+    setResetting2526(true);
+    try {
+      const result = await resetLot2526Masterfile();
+      alert(`2526 worksheet reset. Removed ${result.removed_rows} row(s). Next save will start at No. 1.`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Reset failed');
+    } finally {
+      setResetting2526(false);
     }
   };
 
@@ -113,6 +127,24 @@ export function SettingsPage() {
           <CardContent>
             <Button variant="destructive" onClick={handleReset} disabled={resetting}>
               {resetting ? 'Resetting...' : 'Reset Masterfile to Empty'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {can('delete') && (
+        <Card className="border-red-200 dark:border-red-900">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
+              <Trash2 className="h-5 w-5" /> Reset 2526 Test Data
+            </CardTitle>
+            <CardDescription>
+              Clear all 2526 worksheet records so the next save starts at No. 1 (for testing)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="destructive" onClick={handleReset2526} disabled={resetting2526}>
+              {resetting2526 ? 'Resetting...' : 'Reset 2526 Worksheet to Empty'}
             </Button>
           </CardContent>
         </Card>

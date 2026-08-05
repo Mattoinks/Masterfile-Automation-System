@@ -145,6 +145,7 @@ class ProcessingService:
                 "suggested_values": suggested_values,
                 "field_diagnostics": field_diagnostics,
                 "record_id": record_id,
+                "parsed_dn": pdf_data,
             })
             record = ExtractedRecord(**record_kwargs)
         except Exception as exc:
@@ -153,6 +154,7 @@ class ProcessingService:
                 status=RecordStatus.INVALID,
                 validation_errors=[str(exc)],
                 record_id=record_id,
+                parsed_dn=pdf_data,
             )
 
         record = validate_record(record)
@@ -498,6 +500,9 @@ class ProcessingService:
             return False
         path.unlink()
         return True
+
+    def get_pending_record(self, record_id: str) -> ExtractedRecord | None:
+        return self._pending_records.get(record_id)
 
     def remove_pending_records(self, record_ids: list[str]) -> dict[str, int | list[str]]:
         """Remove records from the review queue without saving to masterfile."""
