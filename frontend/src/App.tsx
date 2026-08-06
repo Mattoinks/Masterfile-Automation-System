@@ -15,7 +15,6 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { SearchPage } from '@/pages/SearchPage';
 import { DownloadPage } from '@/pages/DownloadPage';
 import { UserManagementPage } from '@/pages/UserManagementPage';
-import { ExtractionDebugPage } from '@/pages/ExtractionDebugPage';
 
 export default function App() {
   return (
@@ -34,7 +33,6 @@ export default function App() {
                 <Route path="/history" element={<RequirePermission permission="view_logs"><HistoryPage /></RequirePermission>} />
                 <Route path="/recycle-bin" element={<RequirePermission permission="delete"><RecycleBinPage /></RequirePermission>} />
                 <Route path="/settings" element={<RequirePermission permission="configure"><SettingsPage /></RequirePermission>} />
-                <Route path="/extraction-debug" element={<RequirePermission permission="configure"><ExtractionDebugPage /></RequirePermission>} />
                 <Route path="/search" element={<RequirePermission permission="search"><SearchPage /></RequirePermission>} />
                 <Route path="/download" element={<RequirePermission permission="download"><DownloadPage /></RequirePermission>} />
                 <Route path="/users" element={<RequirePermission permission="manage_users"><UserManagementPage /></RequirePermission>} />

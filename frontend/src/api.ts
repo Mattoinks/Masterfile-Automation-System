@@ -182,6 +182,7 @@ export interface SaveResponse {
 }
 
 export interface LogEntry {
+  id: number;
   timestamp: string;
   filename: string;
   dn_number: string;
@@ -192,6 +193,7 @@ export interface LogEntry {
 }
 
 export interface DuplicateHistoryEntry {
+  id: number;
   date: string;
   case_id: string;
   dn_number: string;
@@ -371,6 +373,26 @@ export async function fetchLogs(limit = 50): Promise<LogEntry[]> {
 export async function fetchDuplicateHistory(limit = 50): Promise<DuplicateHistoryEntry[]> {
   const response = await fetch(`${API_BASE}/duplicate-history?limit=${limit}`, { headers: authHeaders() });
   return handleResponse<DuplicateHistoryEntry[]>(response);
+}
+
+export async function clearLogs(): Promise<{ removed: number }> {
+  const response = await fetch(`${API_BASE}/logs`, { method: 'DELETE', headers: authHeaders() });
+  return handleResponse(response);
+}
+
+export async function deleteLogEntry(id: number): Promise<{ deleted: number }> {
+  const response = await fetch(`${API_BASE}/logs/${id}`, { method: 'DELETE', headers: authHeaders() });
+  return handleResponse(response);
+}
+
+export async function clearDuplicateHistory(): Promise<{ removed: number }> {
+  const response = await fetch(`${API_BASE}/duplicate-history`, { method: 'DELETE', headers: authHeaders() });
+  return handleResponse(response);
+}
+
+export async function deleteDuplicateHistoryEntry(id: number): Promise<{ deleted: number }> {
+  const response = await fetch(`${API_BASE}/duplicate-history/${id}`, { method: 'DELETE', headers: authHeaders() });
+  return handleResponse(response);
 }
 
 export async function fetchLockStatus(): Promise<LockStatus> {

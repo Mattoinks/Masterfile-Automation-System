@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth, ROLE_LABELS } from '@/context/AuthContext';
-import { fetchBackups, restoreBackup, resetMasterfile, resetLot2526Masterfile, fetchWorksheetConfig, fetchBusinessRules, fetchReferenceLookups, type BackupInfo } from '@/api';
+import { fetchBackups, restoreBackup, resetMasterfile, resetLot2526Masterfile, fetchWorksheetConfig, type BackupInfo } from '@/api';
 import { useApp } from '@/context/AppContext';
 import { Lock, RotateCcw, Shield, Trash2 } from 'lucide-react';
 
@@ -11,23 +11,13 @@ export function SettingsPage() {
   const { userName, role, user, can } = useAuth();
   const { refreshDashboard, lockStatus } = useApp();
   const [worksheet, setWorksheet] = useState<Record<string, unknown>>({});
-  const [rules, setRules] = useState<Record<string, unknown>>({});
-  const [lookups, setLookups] = useState<Record<string, unknown>>({});
   const [backups, setBackups] = useState<BackupInfo[]>([]);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
   const [resetting2526, setResetting2526] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      fetchWorksheetConfig(),
-      fetchBusinessRules(),
-      fetchReferenceLookups(),
-    ]).then(([ws, br, rl]) => {
-      setWorksheet(ws);
-      setRules(br);
-      setLookups(rl);
-    });
+    fetchWorksheetConfig().then(setWorksheet);
   }, []);
 
   useEffect(() => {
@@ -190,27 +180,6 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Default Values</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="text-xs bg-slate-50 dark:bg-slate-900 rounded-lg p-4 overflow-auto">
-            {JSON.stringify(rules.defaults || {}, null, 2)}
-          </pre>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Device & Package Lookups</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="text-xs bg-slate-50 dark:bg-slate-900 rounded-lg p-4 overflow-auto max-h-96">
-            {JSON.stringify(lookups, null, 2)}
-          </pre>
-        </CardContent>
-      </Card>
     </div>
   );
 }

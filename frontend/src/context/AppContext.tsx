@@ -180,7 +180,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const [newStats, newLogs, wsConfig, masterRows, lock] = await Promise.all([
         fetchStats(),
-        fetchLogs(),
+        fetchLogs(200),
         fetchWorksheetConfig(),
         fetchMasterfileMeta(),
         fetchLockStatus(),
@@ -647,7 +647,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         overrides: recordEdits[r.record_id!] || {},
       }));
       const payloadIds = new Set(payload.map((p) => p.record_id));
-      const matchedDrafts = lot2526Drafts.filter((d) => d.record_id && payloadIds.has(d.record_id));
+      const matchedDrafts = lot2526Drafts
+        .filter((d) => d.record_id && payloadIds.has(d.record_id))
+        .map((d) => {
+          const linkedRecord = records.find((r) => r.record_id === d.record_id);
+          if (!linkedRecord) return d;
+          // Test Bau and Disposition/SS Plan mirror the FY2526 record's
+          // Test Bau / Rework Flow Procedure at save time, regardless of
+          // whatever the draft itself was extracted with - the review UI
+          // only ever shows these read-only from the FY2526 record, so
+          // what's saved must match what was actually shown.
+          return {
+            ...d,
+            test_bau: getRecordField(linkedRecord, 'test_bau'),
+            disposition_or_ss_plan_name: getRecordField(linkedRecord, 'rework_flow_procedure'),
+          };
+        });
       const result = await saveToMasterfile(payload, matchedDrafts);
       setLastSaveResult(result);
       let text = `Inserted ${result.inserted}, skipped ${result.skipped}, replaced ${result.replaced}`;

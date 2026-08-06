@@ -4,7 +4,6 @@ position-based lot table reconstruction (lot_table_extractor.py) - does not
 add a new PDF parser of its own.
 """
 
-from datetime import date
 from typing import Any
 
 # RETOU lot number creation criteria (1st-time split): tens digit of the
@@ -57,27 +56,18 @@ def map_dn_to_breakdown_rows(dn_data: dict[str, Any]) -> list[dict[str, str]]:
     across the group; original_label_lot_no/date_code/return_qty_from_dc
     are that lot line's own values.
 
-    created_lot_no is computed once here, deterministically, from that same
-    row's original_label_lot_no (RETOU 1st-time-split rule) - editable in
-    review before saving, and the saved value becomes the source of truth
-    from then on (the Cases page later displays/edits it, never
-    regenerates it).
+    created_lot_no, date_created, created_date_code, physical_lot_qty, and
+    lot_code have no corresponding extracted field, so they are always
+    left blank rather than guessed or inferred - they're manually entered
+    by the engineer in review (created_lot_no can still be computed as a
+    *suggestion* later, on the Cases page, for legacy rows that don't have
+    one saved yet - see suggest_created_lot_no() - but it's never
+    auto-filled here at intake).
 
-    disposition_or_ss_plan_name, lw, physical_lot_qty, and lot_code have no
-    corresponding extracted field, so they are always left blank rather
-    than guessed or inferred - they're editable manual fields
-    (physical_lot_qty/lot_code in case they're already known at intake;
-    the other two firmly belong to a later phase).
-
-    date_created and created_date_code are deterministic at intake time
-    (unlike physical_lot_qty/lot_code, which usually depend on a physical
-    split that hasn't happened yet): date_created is simply today's date
-    (the date this breakdown row is being created), and created_date_code
-    is the same date code as the original lot line it was split from.
+    disposition_or_ss_plan_name and lw are likewise always blank here.
     """
     test_bau_list = dn_data.get("all_test_bau") or []
     test_bau = str(test_bau_list[0]) if test_bau_list else ""
-    today = date.today().isoformat()
 
     lot_table_rows = dn_data.get("lot_table_rows") or []
     if lot_table_rows:
@@ -98,12 +88,12 @@ def map_dn_to_breakdown_rows(dn_data: dict[str, Any]) -> list[dict[str, str]]:
             "original_label_lot_no": row["original_label_lot_no"],
             "date_code": row["date_code"],
             "return_qty_from_dc": row["return_qty_from_dc"],
-            "created_lot_no": suggest_created_lot_no(row["original_label_lot_no"]),
+            "created_lot_no": "",
             "disposition_or_ss_plan_name": "",
             "date_attached_ss_plan": "",
             "lw": "",
-            "date_created": today,
-            "created_date_code": row["date_code"],
+            "date_created": "",
+            "created_date_code": "",
             "physical_lot_qty": "",
             "lot_code": "",
         }

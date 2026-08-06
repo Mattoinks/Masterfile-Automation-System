@@ -97,12 +97,38 @@ def get_logs(
     return audit_logger.get_recent_logs(limit=limit)
 
 
+@router.delete("/logs")
+def clear_logs(_: Annotated[dict, Depends(require_perm("delete"))] = None):
+    removed = audit_logger.clear_logs()
+    return {"removed": removed}
+
+
+@router.delete("/logs/{entry_id}")
+def delete_log_entry(entry_id: int, _: Annotated[dict, Depends(require_perm("delete"))] = None):
+    if not audit_logger.delete_log_entry(entry_id):
+        raise HTTPException(status_code=404, detail=f"Log entry {entry_id} not found")
+    return {"deleted": entry_id}
+
+
 @router.get("/duplicate-history")
 def get_duplicate_history(
     limit: int = 50,
     _: Annotated[dict, Depends(get_current_user)] = None,
 ):
     return audit_logger.get_duplicate_history(limit=limit)
+
+
+@router.delete("/duplicate-history")
+def clear_duplicate_history(_: Annotated[dict, Depends(require_perm("delete"))] = None):
+    removed = audit_logger.clear_duplicate_history()
+    return {"removed": removed}
+
+
+@router.delete("/duplicate-history/{entry_id}")
+def delete_duplicate_history_entry(entry_id: int, _: Annotated[dict, Depends(require_perm("delete"))] = None):
+    if not audit_logger.delete_duplicate_entry(entry_id):
+        raise HTTPException(status_code=404, detail=f"History entry {entry_id} not found")
+    return {"deleted": entry_id}
 
 
 @router.get("/lock-status", response_model=LockStatusResponse)

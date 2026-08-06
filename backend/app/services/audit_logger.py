@@ -73,15 +73,39 @@ class AuditLogger:
         with open(DUPLICATE_HISTORY_PATH, "w", encoding="utf-8") as f:
             json.dump(history[-500:], f, indent=2)
 
-    def get_duplicate_history(self, limit: int = 50) -> list[dict]:
+    def _load_duplicate_history(self) -> list[dict]:
         if not DUPLICATE_HISTORY_PATH.exists():
             return []
         try:
             with open(DUPLICATE_HISTORY_PATH, encoding="utf-8") as f:
-                history = json.load(f)
-            return list(reversed(history[-limit:]))
+                return json.load(f)
         except (json.JSONDecodeError, OSError):
             return []
+
+    def _save_duplicate_history(self, history: list[dict]) -> None:
+        with open(DUPLICATE_HISTORY_PATH, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=2)
+
+    def get_duplicate_history(self, limit: int = 50) -> list[dict]:
+        history = self._load_duplicate_history()
+        # id is this entry's position in the on-disk (chronological) list -
+        # stable across calls since entries are only ever appended, and used
+        # by delete_duplicate_entry() to target the exact same entry back.
+        indexed = [{"id": i, **entry} for i, entry in enumerate(history)]
+        return list(reversed(indexed[-limit:]))
+
+    def clear_duplicate_history(self) -> int:
+        removed = len(self._load_duplicate_history())
+        self._save_duplicate_history([])
+        return removed
+
+    def delete_duplicate_entry(self, entry_id: int) -> bool:
+        history = self._load_duplicate_history()
+        if entry_id < 0 or entry_id >= len(history):
+            return False
+        del history[entry_id]
+        self._save_duplicate_history(history)
+        return True
 
     def increment_stat(self, key: str, amount: int = 1) -> None:
         stats = self._reset_daily_if_needed(self._load_stats())
@@ -91,21 +115,51 @@ class AuditLogger:
     def get_stats(self) -> dict:
         return self._reset_daily_if_needed(self._load_stats())
 
-    def get_recent_logs(self, limit: int = 50) -> list[dict]:
+    def _read_log_lines(self) -> list[str]:
         if not self.log_path.exists():
             return []
-        lines = self.log_path.read_text(encoding="utf-8").strip().splitlines()
+        return self.log_path.read_text(encoding="utf-8").strip().splitlines()
+
+    def _write_log_lines(self, lines: list[str]) -> None:
+        content = "\n".join(lines)
+        self.log_path.write_text(f"{content}\n" if content else "", encoding="utf-8")
+
+    @staticmethod
+    def _parse_log_line(line: str) -> dict | None:
+        parts = line.split("|")
+        if len(parts) < 5:
+            return None
+        return {
+            "timestamp": parts[0],
+            "filename": parts[1],
+            "dn_number": parts[2],
+            "action": parts[3],
+            "status": parts[4],
+            "user": parts[5] if len(parts) > 5 else "System",
+            "details": parts[6] if len(parts) > 6 else "",
+        }
+
+    def get_recent_logs(self, limit: int = 50) -> list[dict]:
+        lines = self._read_log_lines()
+        # id is this entry's position in the on-disk (chronological) file -
+        # stable across calls since lines are only ever appended, and used
+        # by delete_log_entry() to target the exact same line back.
         entries = []
-        for line in reversed(lines[-limit:]):
-            parts = line.split("|")
-            if len(parts) >= 5:
-                entries.append({
-                    "timestamp": parts[0],
-                    "filename": parts[1],
-                    "dn_number": parts[2],
-                    "action": parts[3],
-                    "status": parts[4],
-                    "user": parts[5] if len(parts) > 5 else "System",
-                    "details": parts[6] if len(parts) > 6 else "",
-                })
+        for i, line in reversed(list(enumerate(lines))[-limit:]):
+            parsed = self._parse_log_line(line)
+            if parsed:
+                entries.append({"id": i, **parsed})
         return entries
+
+    def clear_logs(self) -> int:
+        removed = len(self._read_log_lines())
+        self._write_log_lines([])
+        return removed
+
+    def delete_log_entry(self, entry_id: int) -> bool:
+        lines = self._read_log_lines()
+        if entry_id < 0 or entry_id >= len(lines):
+            return False
+        del lines[entry_id]
+        self._write_log_lines(lines)
+        return True
