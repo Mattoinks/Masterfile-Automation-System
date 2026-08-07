@@ -11,6 +11,13 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Allows digits and thousand-separator commas only (e.g. "1,000") - used
+// for quantity fields that should stay free-typeable but not accept letters
+// or other symbols.
+export function sanitizeQtyInput(value: string): string {
+  return value.replace(/[^0-9,]/g, '');
+}
+
 export function formatToday(): string {
   return new Date().toLocaleDateString('en-GB', {
     day: 'numeric',

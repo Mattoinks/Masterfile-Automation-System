@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
+import { sanitizeQtyInput } from '@/lib/utils';
 import {
   fetchLot2526Cases,
   fetchLot2526CaseDetail,
@@ -258,13 +259,10 @@ export function Lot2526CaseBrowser() {
                             </TableCell>
                             <TableCell>
                               <Input
-                                type="number"
                                 inputMode="numeric"
-                                min="0"
-                                step="1"
                                 value={entry.physical_lot_qty}
                                 disabled={!can('insert')}
-                                onChange={(e) => setField('physical_lot_qty', e.target.value)}
+                                onChange={(e) => setField('physical_lot_qty', sanitizeQtyInput(e.target.value))}
                               />
                             </TableCell>
                             <TableCell>
@@ -337,12 +335,11 @@ export function Lot2526CaseBrowser() {
                           <div className="space-y-1">
                             <label className="text-xs font-medium text-slate-500">Physical Lot Qty</label>
                             <Input
-                              type="number"
                               inputMode="numeric"
-                              min="0"
-                              step="1"
                               value={newRowEntry.physical_lot_qty}
-                              onChange={(e) => setNewRowEntry({ ...newRowEntry, physical_lot_qty: e.target.value })}
+                              onChange={(e) =>
+                                setNewRowEntry({ ...newRowEntry, physical_lot_qty: sanitizeQtyInput(e.target.value) })
+                              }
                             />
                           </div>
                           <div className="space-y-1">

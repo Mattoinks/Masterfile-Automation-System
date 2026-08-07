@@ -43,6 +43,7 @@ DUPLICATE_HISTORY_PATH = LOGS_DIR / "duplicate_history.json"
 INDEX_DIR = STORAGE_DIR / "index"
 INDEX_DB_PATH = INDEX_DIR / "rma_index.db"
 AUTH_DB_PATH = INDEX_DIR / "auth.db"
+OCR_CACHE_DIR = STORAGE_DIR / "ocr_cache"
 
 # PDF processing performance (override via environment variables)
 PDF_PROCESS_WORKERS = int(os.environ.get("PDF_PROCESS_WORKERS", "0")) or min(
@@ -61,6 +62,6 @@ def resolve_masterfile_path() -> Path:
 
 for directory in (
     MASTERFILE_DIR, UPLOADS_DIR, PROCESSED_DIR, LOGS_DIR, BACKUP_DIR, INDEX_DIR,
-    ANALYZE_DIR, EXTRACTION_LOGS_DIR,
+    ANALYZE_DIR, EXTRACTION_LOGS_DIR, OCR_CACHE_DIR,
 ):
     directory.mkdir(parents=True, exist_ok=True)

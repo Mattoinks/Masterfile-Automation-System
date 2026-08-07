@@ -2,7 +2,7 @@ import { FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/context/AppContext';
-import { cn } from '@/lib/utils';
+import { cn, sanitizeQtyInput } from '@/lib/utils';
 import type { Lot2526BreakdownRecord } from '@/api';
 
 // test_bau and disposition_or_ss_plan_name are excluded here - they're
@@ -77,18 +77,13 @@ export function Lot2526ReviewSection() {
                     <div key={key} className="space-y-1">
                       <label className="text-xs font-medium text-slate-500">{label}</label>
                       <Input
-                        type={
-                          key === 'date_created' || key === 'date_attached_ss_plan'
-                            ? 'date'
-                            : key === 'physical_lot_qty'
-                              ? 'number'
-                              : undefined
-                        }
+                        type={key === 'date_created' || key === 'date_attached_ss_plan' ? 'date' : undefined}
                         inputMode={key === 'physical_lot_qty' ? 'numeric' : undefined}
-                        min={key === 'physical_lot_qty' ? '0' : undefined}
-                        step={key === 'physical_lot_qty' ? '1' : undefined}
                         value={(draft[key] as string) || ''}
-                        onChange={(e) => draft.record_id && updateLot2526Draft(draft.record_id, key, e.target.value)}
+                        onChange={(e) => {
+                          const value = key === 'physical_lot_qty' ? sanitizeQtyInput(e.target.value) : e.target.value;
+                          updateLot2526Draft(index, key, value);
+                        }}
                       />
                     </div>
                   ))}

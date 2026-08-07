@@ -70,9 +70,10 @@ def _page_tokens_native(page: "pdfplumber.page.Page") -> list[tuple[float, float
 def _page_tokens_ocr(
     page: fitz.Page,
     ocr_cache: dict[int, list[tuple[list[list[float]], str]]] | None = None,
+    ocr_persistent_cache: dict[int, list[tuple[list[list[float]], str]]] | None = None,
 ) -> list[tuple[float, float, str]]:
     try:
-        boxes = render_page_ocr_boxes(page, cache=ocr_cache)
+        boxes = render_page_ocr_boxes(page, cache=ocr_cache, persistent_cache=ocr_persistent_cache)
     except (OCRUnavailableError, OCRExtractionError):
         return []
     return [(box[0][0], box[0][1], text) for box, text in boxes]
@@ -129,6 +130,7 @@ def _extract_rows_from_tokens(all_rows: list[list[tuple[float, str]]]) -> list[d
 def extract_lot_table_rows(
     pdf_path: str | Path,
     ocr_cache: dict[int, list[tuple[list[list[float]], str]]] | None = None,
+    ocr_persistent_cache: dict[int, list[tuple[list[list[float]], str]]] | None = None,
 ) -> list[dict[str, str]]:
     """Returns [{"lot_number", "quantity", "date_code"}, ...] in table order,
     or [] if the table can't be confidently located."""
@@ -142,7 +144,7 @@ def extract_lot_table_rows(
                     plumber_page = plumber_doc.pages[index]
                     tokens = _page_tokens_native(plumber_page)
                 else:
-                    tokens = _page_tokens_ocr(page, ocr_cache=ocr_cache)
+                    tokens = _page_tokens_ocr(page, ocr_cache=ocr_cache, ocr_persistent_cache=ocr_persistent_cache)
                 if tokens:
                     all_rows.extend(_cluster_rows(tokens))
     except Exception:

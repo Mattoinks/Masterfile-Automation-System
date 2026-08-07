@@ -117,7 +117,7 @@ interface AppContextValue {
   exactDuplicateCount: number;
   possibleDuplicateCount: number;
   lot2526Drafts: Lot2526BreakdownRecord[];
-  updateLot2526Draft: (recordId: string, field: keyof Lot2526BreakdownRecord, value: string) => void;
+  updateLot2526Draft: (index: number, field: keyof Lot2526BreakdownRecord, value: string) => void;
 }
 
 const defaultStats: Stats = {
@@ -696,9 +696,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateLot2526Draft = useCallback(
-    (recordId: string, field: keyof Lot2526BreakdownRecord, value: string) => {
+    (index: number, field: keyof Lot2526BreakdownRecord, value: string) => {
       setLot2526Drafts((prev) =>
-        prev.map((d) => (d.record_id === recordId ? { ...d, [field]: value } : d))
+        prev.map((d, i) => (i === index ? { ...d, [field]: value } : d))
       );
     },
     []

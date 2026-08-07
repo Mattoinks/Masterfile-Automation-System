@@ -34,6 +34,8 @@ storage/index/*.db
 !storage/index/.gitkeep
 storage/backup/**
 !storage/backup/.gitkeep
+storage/ocr_cache/**
+!storage/ocr_cache/.gitkeep
 
 # Packaged seed template ships with the API (needed for empty DATA_DIR boots)
 !backend/assets/
