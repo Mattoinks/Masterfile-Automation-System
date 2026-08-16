@@ -5,6 +5,13 @@ from pathlib import Path
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 _REPO_ROOT = _BACKEND_ROOT.parent
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(_BACKEND_ROOT / ".env")
+except ImportError:
+    pass
+
 
 def _resolve_base_dir() -> Path:
     override = os.environ.get("DATA_DIR", "").strip()
@@ -43,6 +50,7 @@ DUPLICATE_HISTORY_PATH = LOGS_DIR / "duplicate_history.json"
 INDEX_DIR = STORAGE_DIR / "index"
 INDEX_DB_PATH = INDEX_DIR / "rma_index.db"
 AUTH_DB_PATH = INDEX_DIR / "auth.db"
+REQUESTS_DB_PATH = INDEX_DIR / "requests.db"
 OCR_CACHE_DIR = STORAGE_DIR / "ocr_cache"
 
 # PDF processing performance (override via environment variables)
@@ -50,6 +58,20 @@ PDF_PROCESS_WORKERS = int(os.environ.get("PDF_PROCESS_WORKERS", "0")) or min(
     16, max(4, (os.cpu_count() or 4))
 )
 OCR_RENDER_SCALE = float(os.environ.get("OCR_RENDER_SCALE", "2.5"))
+
+# RMA Request Portal: outbound email notification (see request_notify_service.py).
+# Leave SMTP_HOST unset to disable notifications without breaking submissions.
+SMTP_HOST = os.environ.get("SMTP_HOST", "").strip()
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "").strip()
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "").strip()
+SMTP_FROM_ADDRESS = os.environ.get("SMTP_FROM_ADDRESS", "").strip()
+SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() != "false"
+REQUEST_NOTIFY_RECIPIENTS = [
+    r.strip() for r in os.environ.get("REQUEST_NOTIFY_RECIPIENTS", "").split(",") if r.strip()
+]
+# Frontend origin, used only to build the link in the notification email.
+PORTAL_BASE_URL = os.environ.get("PORTAL_BASE_URL", "").strip().rstrip("/")
 
 
 def resolve_masterfile_path() -> Path:

@@ -26,7 +26,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   lastLogin: string | null;
-  login: (username: string, password: string, rememberMe?: boolean) => Promise<void>;
+  login: (username: string, password: string, rememberMe?: boolean) => Promise<AuthUser>;
   loginAsViewer: () => Promise<void>;
   logout: () => Promise<void>;
   can: (permission: string) => boolean;
@@ -39,6 +39,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrator',
   engineer: 'Engineer',
   viewer: 'Viewer',
+  requester: 'Requester',
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -98,10 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, lastActivity]);
 
   const login = useCallback(async (username: string, password: string, rememberMe = false) => {
-    const result = await apiLogin(username, password, rememberMe);
-    setUser(result.user);
+    await apiLogin(username, password, rememberMe);
+    // Fetch user + permissions together and set both in the same tick (React
+    // batches these) rather than setUser-then-await-then-setPermissions --
+    // the latter renders one frame with the new role but stale permissions,
+    // which can bounce a permission-gated route through a redirect loop.
     const me = await fetchMe();
+    setUser(me.user);
     setPermissions(me.permissions);
+    return me.user;
   }, []);
 
   const loginAsViewer = useCallback(async () => {

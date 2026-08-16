@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.auth_routes import router as auth_router
 from app.api.lot2526_routes import router as lot2526_router
+from app.api.request_routes import router as request_router
 from app.api.routes import router
 from app.services.auth_service import get_auth_service
 from app.services.excel_service import ExcelService
@@ -61,6 +62,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(router)
 app.include_router(lot2526_router)
+app.include_router(request_router)
 
 
 def _background_index_sync() -> None:

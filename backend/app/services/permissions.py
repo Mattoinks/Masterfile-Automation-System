@@ -5,20 +5,24 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     ENGINEER = "engineer"
     VIEWER = "viewer"
+    REQUESTER = "requester"
 
 
 ROLE_PERMISSIONS: dict[UserRole, set[str]] = {
     UserRole.ADMIN: {
         "view", "search", "download", "upload", "process", "edit", "insert",
         "replace", "delete", "restore", "configure", "force_insert", "revision",
-        "manage_users", "view_logs",
+        "manage_users", "view_logs", "manage_requests",
     },
     UserRole.ENGINEER: {
         "view", "search", "download", "upload", "process", "edit", "insert",
-        "replace", "revision", "view_logs",
+        "replace", "revision", "view_logs", "manage_requests",
     },
     UserRole.VIEWER: {
         "view", "search", "download", "view_logs",
+    },
+    UserRole.REQUESTER: {
+        "submit_request",
     },
 }
 

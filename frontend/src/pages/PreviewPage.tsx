@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ExcelRowPreview } from '@/components/dashboard/ExcelRowPreview';
 import { SpreadsheetReview } from '@/components/review/SpreadsheetReview';
@@ -39,7 +40,11 @@ export function PreviewPage() {
   const { can } = useAuth();
   const [modalAction, setModalAction] = useState<DuplicateAction>('skip');
   const [fullViewRecordId, setFullViewRecordId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'fy2526' | '2526'>('fy2526');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'fy2526' | '2526'>(
+    initialTab === '2526' ? '2526' : 'fy2526'
+  );
 
   const fullViewRecord = records.find((r) => r.record_id === fullViewRecordId);
   const fullViewIndex = fullViewRecord

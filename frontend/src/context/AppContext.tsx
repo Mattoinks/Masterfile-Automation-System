@@ -143,7 +143,7 @@ function makeNotification(type: AppNotification['type'], title: string, message:
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { isReadOnly, user, isAuthenticated } = useAuth();
+  const { isReadOnly, user, isAuthenticated, role } = useAuth();
   const [stats, setStats] = useState<Stats>(defaultStats);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [records, setRecords] = useState<ExtractedRecord[]>([]);
@@ -196,7 +196,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    // Requesters have none of the permissions this fetches (view/upload/etc.)
+    // and live entirely in the separate /portal shell -- skip to avoid a
+    // burst of 403s on every requester login.
+    if (!isAuthenticated || role === 'requester') return;
     refreshDashboard();
     const draft = localStorage.getItem(DRAFT_STORAGE_KEY);
     if (draft) {
@@ -215,7 +218,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         /* ignore */
       }
     }
-  }, [isAuthenticated, refreshDashboard, pushNotification]);
+  }, [isAuthenticated, role, refreshDashboard, pushNotification]);
 
   // Auto-save draft every 30 seconds when in review mode
   useEffect(() => {

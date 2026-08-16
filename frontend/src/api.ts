@@ -17,7 +17,7 @@ export type DuplicateAction =
   | 'edit_existing'
   | 'force_insert';
 
-export type UserRole = 'admin' | 'engineer' | 'viewer';
+export type UserRole = 'admin' | 'engineer' | 'viewer' | 'requester';
 
 export interface ExistingMasterRecord {
   case_id: string;
@@ -822,6 +822,63 @@ export async function updateLot2526RowLotCreation(
     body: JSON.stringify(entry),
   });
   return handleResponse<Lot2526CaseDetail>(response);
+}
+
+// --- RMA Request Portal ---
+// Standalone request-intake queue, independent of the FY2526/2526 DN
+// pipeline above. See frontend/src/lib/requestFormFields.ts for the field
+// config mirror (backend source of truth: backend/app/models/request_schemas.py).
+
+export const REQUEST_STATUSES = ['New', 'In Progress', 'Done'] as const;
+export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+
+export interface RmaRequestRecord {
+  id: number;
+  request_code: string;
+  status: string;
+  requester_username: string;
+  requester_display_name: string;
+  customer_name: string;
+  dn_number: string;
+  linked_dn_number: string | null;
+  linked_case_id: number | null;
+  fields: Record<string, string>;
+  internal_notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function submitRequest(fields: Record<string, string>): Promise<RmaRequestRecord> {
+  const response = await fetch(`${API_BASE}/requests`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ fields }),
+  });
+  return handleResponse<RmaRequestRecord>(response);
+}
+
+export async function fetchMyRequests(): Promise<RmaRequestRecord[]> {
+  const response = await fetch(`${API_BASE}/requests/mine`, { headers: authHeaders() });
+  return handleResponse<RmaRequestRecord[]>(response);
+}
+
+export async function fetchRequestQueue(status?: string): Promise<RmaRequestRecord[]> {
+  const params = status ? `?status=${encodeURIComponent(status)}` : '';
+  const response = await fetch(`${API_BASE}/requests${params}`, { headers: authHeaders() });
+  return handleResponse<RmaRequestRecord[]>(response);
+}
+
+export async function updateRequestStatus(
+  id: number,
+  status: string,
+  internalNotes?: string
+): Promise<RmaRequestRecord> {
+  const response = await fetch(`${API_BASE}/requests/${id}/status`, {
+    method: 'PATCH',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ status, ...(internalNotes !== undefined ? { internal_notes: internalNotes } : {}) }),
+  });
+  return handleResponse<RmaRequestRecord>(response);
 }
 
 export const DUPLICATE_ACTION_LABELS: Record<DuplicateAction, string> = {

@@ -105,6 +105,7 @@ export function UserManagementPage() {
               <option value="admin">{ROLE_LABELS.admin}</option>
               <option value="engineer">{ROLE_LABELS.engineer}</option>
               <option value="viewer">{ROLE_LABELS.viewer}</option>
+              <option value="requester">{ROLE_LABELS.requester}</option>
             </select>
             <div className="col-span-2 flex gap-2">
               <Button onClick={handleAdd}>Create</Button>
@@ -156,6 +157,7 @@ export function UserManagementPage() {
                         <option value="admin">{ROLE_LABELS.admin}</option>
                         <option value="engineer">{ROLE_LABELS.engineer}</option>
                         <option value="viewer">{ROLE_LABELS.viewer}</option>
+                        <option value="requester">{ROLE_LABELS.requester}</option>
                       </select>
                     </TableCell>
                     <TableCell>

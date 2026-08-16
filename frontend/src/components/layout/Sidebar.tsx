@@ -15,6 +15,8 @@ import {
   Download,
   ChevronDown,
   LogOut,
+  Inbox,
+  Home,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
@@ -38,6 +40,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
     {
       heading: 'Main',
       items: [
+        { to: '/home', icon: Home, label: 'Home', permission: 'view' },
         { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'view' },
         { to: '/upload', icon: Upload, label: 'Upload DN', permission: 'upload' },
         { to: '/preview', icon: Table2, label: 'Review Records', permission: 'process' },
@@ -47,6 +50,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
     {
       heading: 'Management',
       items: [
+        { to: '/requests', icon: Inbox, label: 'Incoming RMA Requests', permission: 'manage_requests' },
         { to: '/history', icon: History, label: 'Audit Logs', permission: 'view_logs' },
         { to: '/recycle-bin', icon: Trash2, label: 'Recycle Bin', permission: 'delete' },
         { to: '/users', icon: Users, label: 'User Management', permission: 'manage_users' },
@@ -58,6 +62,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
     {
       heading: 'Main',
       items: [
+        { to: '/home', icon: Home, label: 'Home', permission: 'view' },
         { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'view' },
         { to: '/upload', icon: Upload, label: 'Upload DN', permission: 'upload' },
         { to: '/preview', icon: Table2, label: 'Review Records', permission: 'process' },
@@ -66,13 +71,17 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
     },
     {
       heading: 'Management',
-      items: [{ to: '/history', icon: History, label: 'Audit Logs', permission: 'view_logs' }],
+      items: [
+        { to: '/requests', icon: Inbox, label: 'Incoming RMA Requests', permission: 'manage_requests' },
+        { to: '/history', icon: History, label: 'Audit Logs', permission: 'view_logs' },
+      ],
     },
   ],
   viewer: [
     {
       heading: 'Main',
       items: [
+        { to: '/home', icon: Home, label: 'Home', permission: 'view' },
         { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'view' },
         { to: '/masterfile', icon: FileSpreadsheet, label: 'Masterfile', permission: 'view' },
         { to: '/search', icon: Search, label: 'Search', permission: 'search' },
@@ -86,6 +95,10 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       ],
     },
   ],
+  // Requesters never render this sidebar (they live entirely in the
+  // separate /portal shell) -- empty array satisfies the Record<UserRole, ...>
+  // type and documents that intentionally.
+  requester: [],
 };
 
 export function Sidebar({ expanded }: { expanded: boolean }) {
