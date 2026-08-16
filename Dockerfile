@@ -31,7 +31,7 @@ ENV STATIC_DIR=/app/static
 ENV DATA_DIR=/data
 ENV PYTHONUNBUFFERED=1
 
-RUN mkdir -p /data
+RUN mkdir -p /data && chmod g=u /data
 
 EXPOSE 8000
 
