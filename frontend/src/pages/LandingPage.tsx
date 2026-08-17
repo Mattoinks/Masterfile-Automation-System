@@ -42,7 +42,7 @@ const ENTRY_CARDS: EntryCard[] = [
     title: 'Requester',
     description: 'Submit a new RMA request and track the status of your existing requests.',
     capabilities: ['Submit RMA requests', 'Track request status', 'Receive request updates'],
-    cta: 'Requester Sign In',
+    cta: 'Continue as Requester',
   },
 ];
 
@@ -89,10 +89,13 @@ export function LandingPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/30 to-[#071a10]/80" aria-hidden="true" />
 
+        <img
+          src="/infineon.png"
+          alt="Infineon"
+          className="absolute left-4 top-4 h-8 w-auto brightness-0 invert drop-shadow-lg md:h-10"
+        />
+
         <div className="relative">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white ring-2 ring-emerald-400/40">
-            <ClipboardCheck className="h-9 w-9" />
-          </div>
           <h1 className="mt-6 text-3xl font-bold text-white md:text-5xl">
             RMA Masterfile
             <br />
@@ -157,7 +160,10 @@ export function LandingPage() {
                 ))}
               </ul>
 
-              <Button className="mt-auto w-full justify-between" onClick={() => navigate('/login')}>
+              <Button
+                className="mt-auto w-full justify-between"
+                onClick={() => navigate(card.key === 'requester' ? '/portal' : '/login')}
+              >
                 {card.cta}
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -197,11 +203,7 @@ export function LandingPage() {
           </div>
 
           <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-            <span>About the System</span>
-            <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" aria-hidden="true" />
-            <span>Privacy Policy</span>
-            <span className="h-3 w-px bg-slate-300 dark:bg-slate-700" aria-hidden="true" />
-            <span>Support</span>
+            <span>Project Manager: Mark Davis (BE QM MP SIN QE)</span>
           </div>
         </div>
       </div>

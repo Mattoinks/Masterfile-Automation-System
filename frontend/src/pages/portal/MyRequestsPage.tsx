@@ -7,8 +7,8 @@ import { fetchMyRequests, type RmaRequestRecord } from '@/api';
 
 const STATUS_VARIANT: Record<string, 'required' | 'history' | 'success'> = {
   New: 'required',
-  'In Progress': 'history',
-  Done: 'success',
+  Pending: 'history',
+  Approved: 'success',
 };
 
 export function MyRequestsPage() {

@@ -14,7 +14,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-REQUEST_STATUSES = ["New", "In Progress", "Done"]
+REQUEST_STATUSES = ["New", "Pending", "Approved"]
 
 
 class RequestFieldDef(BaseModel):

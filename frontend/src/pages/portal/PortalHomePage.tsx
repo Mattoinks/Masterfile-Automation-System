@@ -21,25 +21,25 @@ import { cn } from '@/lib/utils';
 
 const STATUS_VARIANT: Record<string, 'required' | 'history' | 'success'> = {
   New: 'required',
-  'In Progress': 'history',
-  Done: 'success',
+  Pending: 'history',
+  Approved: 'success',
 };
 
 const STATUS_META: Record<RequestStatus, { icon: typeof FileText; iconBg: string; iconColor: string }> = {
   New: { icon: FileText, iconBg: 'bg-blue-50 dark:bg-blue-950', iconColor: 'text-blue-600 dark:text-blue-400' },
-  'In Progress': {
+  Pending: {
     icon: Clock,
     iconBg: 'bg-amber-50 dark:bg-amber-950',
     iconColor: 'text-amber-600 dark:text-amber-400',
   },
-  Done: {
+  Approved: {
     icon: CheckCircle2,
     iconBg: 'bg-brand-50 dark:bg-brand-950',
     iconColor: 'text-brand-700 dark:text-brand-400',
   },
 };
 
-const STATUS_ORDER: RequestStatus[] = ['New', 'In Progress', 'Done'];
+const STATUS_ORDER: RequestStatus[] = ['New', 'Pending', 'Approved'];
 
 const RECENT_COUNT = 5;
 
@@ -57,7 +57,7 @@ export function PortalHomePage() {
   }, []);
 
   const counts = useMemo(() => {
-    const base: Record<string, number> = { New: 0, 'In Progress': 0, Done: 0 };
+    const base: Record<string, number> = { New: 0, Pending: 0, Approved: 0 };
     requests.forEach((r) => {
       base[r.status] = (base[r.status] || 0) + 1;
     });
@@ -85,8 +85,7 @@ export function PortalHomePage() {
       {/* Hero / search */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a8a4f] via-[#0f4a2c] to-[#071a10] p-6 md:p-10">
         <div className="relative z-10 max-w-xl">
-          <p className="flex items-center gap-1.5 text-sm text-white/80">Welcome back! 👋</p>
-          <h1 className="mt-1 text-2xl font-bold text-white md:text-4xl">
+          <h1 className="text-2xl font-bold text-white md:text-4xl">
             How can we help you today, {userName}?
           </h1>
           <div className="relative mt-6">

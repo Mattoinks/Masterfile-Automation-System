@@ -5,6 +5,7 @@ import {
   Upload,
   Table2,
   FileSpreadsheet,
+  Layers,
   History,
   Trash2,
   Settings,
@@ -44,7 +45,8 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
         { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'view' },
         { to: '/upload', icon: Upload, label: 'Upload DN', permission: 'upload' },
         { to: '/preview', icon: Table2, label: 'Review Records', permission: 'process' },
-        { to: '/masterfile', icon: FileSpreadsheet, label: 'Masterfile', permission: 'view' },
+        { to: '/masterfile', icon: FileSpreadsheet, label: 'FY2526 Masterfile', permission: 'view' },
+        { to: '/masterfile-2526', icon: Layers, label: '2526 Masterfile', permission: 'view' },
       ],
     },
     {
@@ -66,7 +68,8 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
         { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'view' },
         { to: '/upload', icon: Upload, label: 'Upload DN', permission: 'upload' },
         { to: '/preview', icon: Table2, label: 'Review Records', permission: 'process' },
-        { to: '/masterfile', icon: FileSpreadsheet, label: 'Masterfile', permission: 'view' },
+        { to: '/masterfile', icon: FileSpreadsheet, label: 'FY2526 Masterfile', permission: 'view' },
+        { to: '/masterfile-2526', icon: Layers, label: '2526 Masterfile', permission: 'view' },
       ],
     },
     {
@@ -83,7 +86,8 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       items: [
         { to: '/home', icon: Home, label: 'Home', permission: 'view' },
         { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'view' },
-        { to: '/masterfile', icon: FileSpreadsheet, label: 'Masterfile', permission: 'view' },
+        { to: '/masterfile', icon: FileSpreadsheet, label: 'FY2526 Masterfile', permission: 'view' },
+        { to: '/masterfile-2526', icon: Layers, label: '2526 Masterfile', permission: 'view' },
         { to: '/search', icon: Search, label: 'Search', permission: 'search' },
       ],
     },

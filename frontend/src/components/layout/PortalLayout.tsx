@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { ChevronDown, ClipboardList, FileText, FolderKanban, Home, LogOut, Moon, Sun } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ClipboardList, FileText, FolderKanban, Home, LogOut, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, ROLE_LABELS } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -29,7 +29,7 @@ export function PortalLayout() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/welcome');
   };
 
   return (
@@ -98,6 +98,16 @@ export function PortalLayout() {
                   <p className="text-sm font-medium">{userName}</p>
                   <p className="text-xs text-slate-500">{ROLE_LABELS[role]}</p>
                 </div>
+                <DropdownMenu.Item
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 outline-none hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleLogout();
+                  }}
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to Welcome
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
                 <DropdownMenu.Item
                   className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 outline-none hover:bg-slate-100 dark:hover:bg-slate-800"
                   onSelect={(e) => {

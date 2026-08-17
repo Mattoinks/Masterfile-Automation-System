@@ -12,6 +12,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { UploadPage } from '@/pages/UploadPage';
 import { PreviewPage } from '@/pages/PreviewPage';
 import { MasterfilePage } from '@/pages/MasterfilePage';
+import { Lot2526MasterfilePage } from '@/pages/Lot2526MasterfilePage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { RecycleBinPage } from '@/pages/RecycleBinPage';
 import { SettingsPage } from '@/pages/SettingsPage';
@@ -39,6 +40,7 @@ export default function App() {
                 <Route path="/upload" element={<RequirePermission permission="upload"><UploadPage /></RequirePermission>} />
                 <Route path="/preview" element={<RequirePermission permission="process"><PreviewPage /></RequirePermission>} />
                 <Route path="/masterfile" element={<RequirePermission permission="view"><MasterfilePage /></RequirePermission>} />
+                <Route path="/masterfile-2526" element={<RequirePermission permission="view"><Lot2526MasterfilePage /></RequirePermission>} />
                 <Route path="/history" element={<RequirePermission permission="view_logs"><HistoryPage /></RequirePermission>} />
                 <Route path="/recycle-bin" element={<RequirePermission permission="delete"><RecycleBinPage /></RequirePermission>} />
                 <Route path="/settings" element={<RequirePermission permission="configure"><SettingsPage /></RequirePermission>} />

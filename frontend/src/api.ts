@@ -426,13 +426,22 @@ export async function fetchMasterfileRows(
 ): Promise<{
   worksheet: string;
   headers: { col: number; label: string }[];
-  rows: Record<string, unknown>[];
+  rows: ({ _row: number } & Record<string, unknown>)[];
   total: number;
   last_case_id: number;
 }> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (search.trim()) params.set('search', search.trim());
   const response = await fetch(`${API_BASE}/masterfile/rows?${params}`, { headers: authHeaders() });
+  return handleResponse(response);
+}
+
+export async function fetchExcelLayout(): Promise<{
+  worksheet: string;
+  headers: Record<string, string>;
+  pdf_field_mapping: Record<string, string>;
+}> {
+  const response = await fetch(`${API_BASE}/excel-layout`, { headers: authHeaders() });
   return handleResponse(response);
 }
 
@@ -829,7 +838,7 @@ export async function updateLot2526RowLotCreation(
 // pipeline above. See frontend/src/lib/requestFormFields.ts for the field
 // config mirror (backend source of truth: backend/app/models/request_schemas.py).
 
-export const REQUEST_STATUSES = ['New', 'In Progress', 'Done'] as const;
+export const REQUEST_STATUSES = ['New', 'Pending', 'Approved'] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 export interface RmaRequestRecord {

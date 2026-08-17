@@ -28,6 +28,7 @@ interface AuthContextValue {
   lastLogin: string | null;
   login: (username: string, password: string, rememberMe?: boolean) => Promise<AuthUser>;
   loginAsViewer: () => Promise<void>;
+  loginAsRequester: () => Promise<void>;
   logout: () => Promise<void>;
   can: (permission: string) => boolean;
   isReadOnly: boolean;
@@ -114,6 +115,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login('viewer1', 'viewer123', false);
   }, [login]);
 
+  const loginAsRequester = useCallback(async () => {
+    await login('requester1', 'requester123', false);
+  }, [login]);
+
   const logout = useCallback(async () => {
     await logoutApi();
     setUser(null);
@@ -137,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastLogin: user?.last_login || null,
     login,
     loginAsViewer,
+    loginAsRequester,
     logout,
     can,
     isReadOnly: role === 'viewer',

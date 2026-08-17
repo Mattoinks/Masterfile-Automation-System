@@ -73,7 +73,7 @@ class AuthDB:
             ("admin", "admin123", "Administrator", "admin"),
             ("engineer1", "engineer123", "Engineer One", "engineer"),
             ("viewer1", "viewer123", "Viewer One", "viewer"),
-            ("requester1", "requester123", "Juan Dela Cruz", "requester"),
+            ("requester1", "requester123", "Mark Davis", "requester"),
         ]
         now = datetime.now(timezone.utc).isoformat()
         with self._conn() as conn:

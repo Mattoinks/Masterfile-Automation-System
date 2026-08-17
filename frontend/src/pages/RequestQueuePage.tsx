@@ -10,8 +10,8 @@ import { REQUEST_FORM_FIELDS } from '@/lib/requestFormFields';
 
 const STATUS_VARIANT: Record<string, 'required' | 'history' | 'success'> = {
   New: 'required',
-  'In Progress': 'history',
-  Done: 'success',
+  Pending: 'history',
+  Approved: 'success',
 };
 
 // Fields shown only in the expanded detail row, kept off the main table so
