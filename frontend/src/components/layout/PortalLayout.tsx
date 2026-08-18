@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ClipboardList, FileText, FolderKanban, Home, LogOut, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth, ROLE_LABELS } from '@/context/AuthContext';
@@ -25,11 +25,17 @@ function getInitials(name: string) {
 export function PortalLayout() {
   const { userName, role, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
 
   const handleLogout = async () => {
+    // A hard navigation, not react-router's navigate(). Client-side routing
+    // depends on the freshly-cleared auth state having already committed
+    // before /welcome's own render reads it -- correct in theory, but any
+    // timing hiccup leaves you stuck bouncing back to /portal, which is
+    // exactly the bug this replaced. A full reload always starts the app
+    // over from scratch and reads localStorage (already cleared by logout()
+    // below) fresh, so there's nothing left to race.
     await logout();
-    navigate('/welcome');
+    window.location.href = '/welcome';
   };
 
   return (
