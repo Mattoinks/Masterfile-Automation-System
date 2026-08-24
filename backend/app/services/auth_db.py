@@ -1,59 +1,43 @@
-"""SQLite store for users and sessions."""
+"""Postgres (Supabase) store for users and sessions.
+
+Same public surface as before this became Postgres-backed - same class
+name, same method signatures, same return shapes (see the datetime->ISO
+string conversion below: auth_service.py's validate_token() does
+session["expires_at"].replace("Z", "+00:00"), which only works on a
+string - Postgres timestamptz columns come back from psycopg as native
+datetime objects, so every returned row is normalized back to the ISO
+strings SQLite used to hand back, not passed through raw).
+"""
 
 from __future__ import annotations
 
-import sqlite3
-from contextlib import contextmanager
-from datetime import datetime, timezone
+import datetime
 from typing import Any
 
 import bcrypt
 
-from config.settings import AUTH_DB_PATH
+from app.services import db
 
 SESSION_TIMEOUT_MINUTES = 30
 REMEMBER_ME_DAYS = 7
 MIN_PASSWORD_LENGTH = 6
 
+_TIMESTAMP_FIELDS = ("created_at", "last_login", "expires_at")
+
+
+def _normalize(row: dict[str, Any] | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    for key in _TIMESTAMP_FIELDS:
+        value = row.get(key)
+        if isinstance(value, (datetime.datetime, datetime.date)):
+            row[key] = value.isoformat()
+    return row
+
 
 class AuthDB:
-    def __init__(self, db_path=AUTH_DB_PATH) -> None:
-        self.db_path = db_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_schema()
-
-    @contextmanager
-    def _conn(self):
-        conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-            conn.commit()
-        finally:
-            conn.close()
-
-    def _init_schema(self) -> None:
-        with self._conn() as conn:
-            conn.executescript("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    display_name TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    active INTEGER DEFAULT 1,
-                    created_at TEXT NOT NULL,
-                    last_login TEXT
-                );
-                CREATE TABLE IF NOT EXISTS sessions (
-                    token TEXT PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
-                    expires_at TEXT NOT NULL,
-                    remember_me INTEGER DEFAULT 0,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                );
-            """)
+    def __init__(self) -> None:
+        pass
 
     @staticmethod
     def hash_password(password: str) -> str:
@@ -68,104 +52,97 @@ class AuthDB:
         except (ValueError, TypeError):
             return False
 
-    def seed_default_users(self) -> None:
-        defaults = [
-            ("admin", "admin123", "Administrator", "admin"),
-            ("engineer1", "engineer123", "Engineer One", "engineer"),
-            ("viewer1", "viewer123", "Viewer One", "viewer"),
-            ("requester1", "requester123", "Mark Davis", "requester"),
-        ]
-        now = datetime.now(timezone.utc).isoformat()
-        with self._conn() as conn:
-            for username, password, display_name, role in defaults:
-                existing = conn.execute(
-                    "SELECT id FROM users WHERE username = ?", (username,)
+    def get_user_by_username(self, username: str, active_only: bool = True) -> dict[str, Any] | None:
+        with db.bypass_connection() as conn:
+            if active_only:
+                row = conn.execute(
+                    "select * from users where username = %s and active = true", (username,)
                 ).fetchone()
-                if existing:
-                    continue
-                conn.execute(
-                    """INSERT INTO users (username, password_hash, display_name, role, active, created_at)
-                       VALUES (?, ?, ?, ?, 1, ?)""",
-                    (username, self.hash_password(password), display_name, role, now),
-                )
-
-    def get_user_by_username(self, username: str) -> dict[str, Any] | None:
-        with self._conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM users WHERE username = ? AND active = 1", (username,)
-            ).fetchone()
-        return dict(row) if row else None
+            else:
+                row = conn.execute("select * from users where username = %s", (username,)).fetchone()
+        return _normalize(row)
 
     def get_user_by_id(self, user_id: int) -> dict[str, Any] | None:
-        with self._conn() as conn:
-            row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        return dict(row) if row else None
+        with db.bypass_connection() as conn:
+            row = conn.execute("select * from users where id = %s", (user_id,)).fetchone()
+        return _normalize(row)
 
     def list_users(self) -> list[dict[str, Any]]:
-        with self._conn() as conn:
+        with db.bypass_connection() as conn:
             rows = conn.execute(
-                "SELECT id, username, display_name, role, active, created_at, last_login FROM users ORDER BY username"
+                """select id, username, display_name, role, active, created_at, last_login
+                   from users order by username"""
             ).fetchall()
-        return [dict(r) for r in rows]
+        return [_normalize(r) for r in rows]
 
     def create_user(
-        self, username: str, password: str, display_name: str, role: str
+        self, username: str, password: str, display_name: str, role: str, active: bool = True
     ) -> dict[str, Any]:
-        now = datetime.now(timezone.utc).isoformat()
-        with self._conn() as conn:
-            conn.execute(
-                """INSERT INTO users (username, password_hash, display_name, role, active, created_at)
-                   VALUES (?, ?, ?, ?, 1, ?)""",
-                (username, self.hash_password(password), display_name, role, now),
-            )
-            row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-        return dict(row)
+        with db.bypass_connection() as conn:
+            row = conn.execute(
+                """insert into users (username, password_hash, display_name, role, active)
+                   values (%s, %s, %s, %s, %s)
+                   returning *""",
+                (username, self.hash_password(password), display_name, role, active),
+            ).fetchone()
+        return _normalize(row)
+
+    def list_pending_requesters(self) -> list[dict[str, Any]]:
+        with db.bypass_connection() as conn:
+            rows = conn.execute(
+                """select id, username, display_name, role, active, created_at, last_login
+                   from users where role = 'requester' and active = false order by created_at"""
+            ).fetchall()
+        return [_normalize(r) for r in rows]
+
+    def delete_user(self, user_id: int) -> None:
+        with db.bypass_connection() as conn:
+            conn.execute("delete from users where id = %s", (user_id,))
 
     def update_user(self, user_id: int, **fields: Any) -> dict[str, Any] | None:
         allowed = {"display_name", "role", "active", "password_hash"}
         updates = {k: v for k, v in fields.items() if k in allowed and v is not None}
+        if "active" in updates:
+            updates["active"] = bool(updates["active"])  # callers pass 1/0, column is boolean
         if not updates:
             return self.get_user_by_id(user_id)
-        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        set_clause = ", ".join(f"{k} = %s" for k in updates)
         values = list(updates.values()) + [user_id]
-        with self._conn() as conn:
-            conn.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
+        with db.bypass_connection() as conn:
+            conn.execute(f"update users set {set_clause} where id = %s", values)
         return self.get_user_by_id(user_id)
 
     def set_password(self, user_id: int, password: str) -> None:
         self.update_user(user_id, password_hash=self.hash_password(password))
 
     def update_last_login(self, user_id: int) -> None:
-        now = datetime.now(timezone.utc).isoformat()
-        with self._conn() as conn:
-            conn.execute("UPDATE users SET last_login = ? WHERE id = ?", (now, user_id))
+        with db.bypass_connection() as conn:
+            conn.execute("update users set last_login = now() where id = %s", (user_id,))
 
     def create_session(self, token: str, user_id: int, expires_at: str, remember_me: bool) -> None:
-        now = datetime.now(timezone.utc).isoformat()
-        with self._conn() as conn:
+        with db.bypass_connection() as conn:
             conn.execute(
-                """INSERT INTO sessions (token, user_id, expires_at, remember_me, created_at)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (token, user_id, expires_at, int(remember_me), now),
+                """insert into sessions (token, user_id, expires_at, remember_me)
+                   values (%s, %s, %s, %s)""",
+                (token, user_id, expires_at, bool(remember_me)),
             )
 
     def get_session(self, token: str) -> dict[str, Any] | None:
-        with self._conn() as conn:
-            row = conn.execute("SELECT * FROM sessions WHERE token = ?", (token,)).fetchone()
-        return dict(row) if row else None
+        with db.bypass_connection() as conn:
+            row = conn.execute("select * from sessions where token = %s", (token,)).fetchone()
+        return _normalize(row)
 
     def delete_session(self, token: str) -> None:
-        with self._conn() as conn:
-            conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        with db.bypass_connection() as conn:
+            conn.execute("delete from sessions where token = %s", (token,))
 
     def delete_user_sessions(self, user_id: int) -> None:
-        with self._conn() as conn:
-            conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        with db.bypass_connection() as conn:
+            conn.execute("delete from sessions where user_id = %s", (user_id,))
 
     def cleanup_expired_sessions(self) -> None:
-        now = datetime.now(timezone.utc).isoformat()
-        with self._conn() as conn:
-            conn.execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
+        with db.bypass_connection() as conn:
+            conn.execute("delete from sessions where expires_at < now()")
 
 
 _auth_db: AuthDB | None = None

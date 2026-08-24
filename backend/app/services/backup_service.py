@@ -10,12 +10,16 @@ class BackupService:
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
     def create_backup(self) -> Path | None:
-        source = resolve_masterfile_path()
-        if not source.exists():
-            return None
+        """Phase 3: snapshots a fresh export generated from Postgres
+        (same content generate_export_workbook() produces for /download),
+        not a copy of the live .xlsx file - called at the same trigger
+        points as before (soft_delete/restore/permanent_delete/reset)."""
+        from app.services.excel_service import ExcelService
+
         stamp = datetime.now(timezone.utc).strftime("%Y_%m_%d_%H%M")
         dest = BACKUP_DIR / f"RMA_{stamp}.xlsx"
-        shutil.copy2(source, dest)
+        content = ExcelService().generate_export_workbook()
+        dest.write_bytes(content)
         return dest
 
     def list_backups(self) -> list[dict[str, str]]:

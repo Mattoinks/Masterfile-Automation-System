@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services import masterfile_reader
 from app.services.audit_logger import AuditLogger
 from app.services.backup_service import BackupService
 from app.services.excel_service import ExcelLockedError, ExcelService, ExcelServiceError
@@ -20,13 +21,13 @@ class RecordService:
         self.backup = BackupService()
         self.logger = AuditLogger()
 
-    def _guard_write(self, user: str, permission: str = "edit") -> None:
+    def _guard_write(self, user: str, role: str, permission: str = "edit") -> None:
         if self.lock.is_locked_by_other(user):
             status = self.lock.get_status()
             raise ExcelLockedError(
                 f"Masterfile is being edited by {status['user']}. Read-only mode enabled."
             )
-        require_permission(self._role(user), permission)
+        require_permission(role, permission)
         if not self.lock.acquire(user):
             status = self.lock.get_status()
             raise ExcelLockedError(f"Could not acquire lock. Currently edited by {status['user']}.")
@@ -34,16 +35,21 @@ class RecordService:
     def _release(self, user: str) -> None:
         self.lock.release(user)
 
-    @staticmethod
-    def _role(user: str) -> str:
-        u = user.lower()
-        if u in ("admin", "administrator"):
-            return "admin"
-        if u == "viewer":
-            return "viewer"
-        return "engineer"
+    def _pg_read_failed(self, action: str, exc: Exception) -> None:
+        """Phase 2 fail-safe: a Postgres read error is logged loudly (same
+        as Track B's dual-write failures) and the caller falls back to the
+        pre-Phase-2 path - never a silent gap, never a broken response."""
+        self.logger.log(
+            filename="postgres-read", dn_number=action, action="Postgres Read",
+            status="FAILED", user="System", details=str(exc)[:500],
+        )
 
     def get_record(self, case_id: str) -> dict[str, Any] | None:
+        try:
+            return masterfile_reader.get_by_case_id(case_id)
+        except Exception as exc:
+            self._pg_read_failed("get_record", exc)
+
         cached = self.index.get_by_case_id(case_id)
         if cached:
             return cached
@@ -53,13 +59,21 @@ class RecordService:
         return rec
 
     def fast_search(self, **kwargs) -> list[dict[str, Any]]:
-        return self.index.search(**kwargs)
+        try:
+            return masterfile_reader.search(**kwargs)
+        except Exception as exc:
+            self._pg_read_failed("fast_search", exc)
+            return self.index.search(**kwargs)
 
     def get_recycle_bin(self) -> list[dict[str, Any]]:
-        return self.index.get_recycle_bin()
+        try:
+            return masterfile_reader.get_recycle_bin()
+        except Exception as exc:
+            self._pg_read_failed("get_recycle_bin", exc)
+            return self.index.get_recycle_bin()
 
-    def soft_delete(self, case_ids: list[str], user: str = "System") -> dict[str, Any]:
-        self._guard_write(user, "delete")
+    def soft_delete(self, case_ids: list[str], user: str = "System", role: str = "") -> dict[str, Any]:
+        self._guard_write(user, role, "delete")
         backup_file = None
         deleted: list[str] = []
         errors: list[str] = []
@@ -87,8 +101,8 @@ class RecordService:
             self._release(user)
         return {"deleted": deleted, "errors": errors, "backup_file": backup_file}
 
-    def restore(self, case_ids: list[str], user: str = "System") -> dict[str, Any]:
-        self._guard_write(user, "edit")
+    def restore(self, case_ids: list[str], user: str = "System", role: str = "") -> dict[str, Any]:
+        self._guard_write(user, role, "edit")
         restored: list[str] = []
         errors: list[str] = []
         try:
@@ -113,9 +127,8 @@ class RecordService:
             self._release(user)
         return {"restored": restored, "errors": errors}
 
-    def permanent_delete(self, case_ids: list[str], user: str = "System") -> dict[str, Any]:
-        self._guard_write(user, "delete")
-        require_permission(self._role(user), "delete")
+    def permanent_delete(self, case_ids: list[str], user: str = "System", role: str = "") -> dict[str, Any]:
+        self._guard_write(user, role, "delete")
         removed: list[str] = []
         errors: list[str] = []
         try:
@@ -124,18 +137,13 @@ class RecordService:
             try:
                 for case_id in case_ids:
                     try:
-                        row = session.layout.find_row_by_case_id(case_id)
-                        dn = ""
-                        if row:
-                            rec = session.layout.row_to_record(row)
-                            dn = str(rec.get("dn_number", case_id))
                         session.permanent_delete_row(case_id)
                         self.index.remove_record(case_id)
                         removed.append(case_id)
                         self.logger.log(
-                            "masterfile", dn or case_id,
+                            "masterfile", case_id,
                             "Permanent Delete", f"Case {case_id} Removed",
-                            user=user, details="Row physically removed from Excel",
+                            user=user, details="Row permanently removed",
                         )
                     except ExcelServiceError as exc:
                         errors.append(f"{case_id}: {exc}")
@@ -147,8 +155,10 @@ class RecordService:
             self._release(user)
         return {"removed": removed, "errors": errors}
 
-    def update_record(self, case_id: str, fields: dict[str, Any], user: str = "System") -> dict[str, Any]:
-        self._guard_write(user, "edit")
+    def update_record(
+        self, case_id: str, fields: dict[str, Any], user: str = "System", role: str = ""
+    ) -> dict[str, Any]:
+        self._guard_write(user, role, "edit")
         try:
             self.backup.create_backup()
             rec = self.excel.update_record_by_case_id(case_id, fields)
@@ -167,8 +177,8 @@ class RecordService:
         stats = self.index.stats()
         return {"synced": count, **stats}
 
-    def reset_masterfile(self, user: str = "System") -> dict[str, Any]:
-        self._guard_write(user, "delete")
+    def reset_masterfile(self, user: str = "System", role: str = "") -> dict[str, Any]:
+        self._guard_write(user, role, "delete")
         try:
             backup = self.backup.create_backup()
             removed = self.excel.reset_all_data_rows()

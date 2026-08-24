@@ -17,7 +17,7 @@ export type DuplicateAction =
   | 'edit_existing'
   | 'force_insert';
 
-export type UserRole = 'admin' | 'engineer' | 'viewer' | 'requester';
+export type UserRole = 'admin' | 'engineer' | 'requester';
 
 export interface ExistingMasterRecord {
   case_id: string;
@@ -234,6 +234,7 @@ export interface AuthUser {
   display_name: string;
   role: UserRole;
   active: boolean;
+  created_at?: string | null;
   last_login?: string | null;
 }
 
@@ -341,6 +342,21 @@ export async function createUser(payload: {
   return handleResponse<AuthUser>(response);
 }
 
+/** Public self-registration for the Requester Portal only - always creates
+ * a requester account, no auth header, no role field (server hardcodes it). */
+export async function registerRequester(payload: {
+  username: string;
+  password: string;
+  display_name: string;
+}) {
+  const response = await fetch(`${API_BASE}/auth/register-requester`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<AuthUser>(response);
+}
+
 export async function updateUser(userId: number, payload: Partial<{
   display_name: string;
   role: UserRole;
@@ -353,6 +369,27 @@ export async function updateUser(userId: number, payload: Partial<{
     body: JSON.stringify(payload),
   });
   return handleResponse<AuthUser>(response);
+}
+
+export async function fetchPendingRequesters(): Promise<{ requesters: AuthUser[] }> {
+  const response = await fetch(`${API_BASE}/auth/pending-requesters`, { headers: authHeaders() });
+  return handleResponse(response);
+}
+
+export async function approveRequester(userId: number) {
+  const response = await fetch(`${API_BASE}/auth/pending-requesters/${userId}/approve`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handleResponse<AuthUser>(response);
+}
+
+export async function rejectRequester(userId: number) {
+  const response = await fetch(`${API_BASE}/auth/pending-requesters/${userId}/reject`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handleResponse<{ message: string }>(response);
 }
 
 export async function fetchStats(): Promise<Stats> {
@@ -598,14 +635,62 @@ export async function saveToMasterfile(
   return handleResponse<SaveResponse>(response);
 }
 
+interface SaveFilePickerOptions {
+  suggestedName?: string;
+  types?: { description: string; accept: Record<string, string[]> }[];
+}
+interface FileSystemWritableFileStream {
+  write(data: Blob): Promise<void>;
+  close(): Promise<void>;
+}
+interface FileSystemFileHandle {
+  createWritable(): Promise<FileSystemWritableFileStream>;
+}
+declare global {
+  interface Window {
+    showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>;
+  }
+}
+
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
 export async function downloadMasterfile(): Promise<void> {
+  const defaultName = 'RMA_MASTER.xlsx';
+
+  // Chromium browsers: real OS "Save As" dialog - user picks the folder
+  // and file name directly, same as any other native save.
+  if (window.showSaveFilePicker) {
+    let handle: FileSystemFileHandle;
+    try {
+      handle = await window.showSaveFilePicker({
+        suggestedName: defaultName,
+        types: [{ description: 'Excel Workbook', accept: { [XLSX_MIME]: ['.xlsx'] } }],
+      });
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return; // user cancelled the dialog
+      throw err;
+    }
+    const response = await fetch(`${API_BASE}/download`, { headers: authHeaders() });
+    if (!response.ok) throw new Error('Download failed');
+    const writable = await handle.createWritable();
+    await writable.write(await response.blob());
+    await writable.close();
+    return;
+  }
+
+  // Fallback (Firefox/Safari, or non-secure context): prompt for a name,
+  // then save to the browser's default downloads folder as usual.
+  const typed = window.prompt('Save as', defaultName)?.trim();
+  if (typed === undefined) return; // cancelled
+  const filename = typed ? (typed.toLowerCase().endsWith('.xlsx') ? typed : `${typed}.xlsx`) : defaultName;
+
   const response = await fetch(`${API_BASE}/download`, { headers: authHeaders() });
   if (!response.ok) throw new Error('Download failed');
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'RMA_MASTER.xlsx';
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }

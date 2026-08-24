@@ -27,8 +27,6 @@ interface AuthContextValue {
   isLoading: boolean;
   lastLogin: string | null;
   login: (username: string, password: string, rememberMe?: boolean) => Promise<AuthUser>;
-  loginAsViewer: () => Promise<void>;
-  loginAsRequester: () => Promise<void>;
   logout: () => Promise<void>;
   can: (permission: string) => boolean;
   isReadOnly: boolean;
@@ -39,7 +37,6 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrator',
   engineer: 'Engineer',
-  viewer: 'Viewer',
   requester: 'Requester',
 };
 
@@ -111,14 +108,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return me.user;
   }, []);
 
-  const loginAsViewer = useCallback(async () => {
-    await login('viewer1', 'viewer123', false);
-  }, [login]);
-
-  const loginAsRequester = useCallback(async () => {
-    await login('requester1', 'requester123', false);
-  }, [login]);
-
   const logout = useCallback(async () => {
     await logoutApi();
     setUser(null);
@@ -130,7 +119,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [permissions]
   );
 
-  const role = (user?.role || 'viewer') as UserRole;
+  // Least-privileged placeholder for the brief window before a real user
+  // loads (or when there is none) - every role-gated route/component also
+  // checks isAuthenticated/isLoading, so this never actually grants access.
+  const role = (user?.role || 'requester') as UserRole;
 
   const value: AuthContextValue = {
     user,
@@ -141,11 +133,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     lastLogin: user?.last_login || null,
     login,
-    loginAsViewer,
-    loginAsRequester,
     logout,
     can,
-    isReadOnly: role === 'viewer',
+    // No role is read-only anymore (Viewer removed) - kept as a field since
+    // several masterfile components still gate writes on `!isReadOnly`;
+    // always false is the correct value now, not dead weight to strip.
+    isReadOnly: false,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

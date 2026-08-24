@@ -23,6 +23,8 @@ import { RequestQueuePage } from '@/pages/RequestQueuePage';
 import { PortalHomePage } from '@/pages/portal/PortalHomePage';
 import { SubmitRequestPage } from '@/pages/portal/SubmitRequestPage';
 import { MyRequestsPage } from '@/pages/portal/MyRequestsPage';
+import { PortalLoginPage } from '@/pages/portal/PortalLoginPage';
+import { PortalRegisterPage } from '@/pages/portal/PortalRegisterPage';
 
 export default function App() {
   return (
@@ -33,6 +35,8 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/welcome" element={<LandingPage />} />
+              <Route path="/portal/login" element={<PortalLoginPage />} />
+              <Route path="/portal/register" element={<PortalRegisterPage />} />
               <Route element={<ProtectedLayout />}>
                 <Route path="/access-denied" element={<AccessDeniedPage />} />
                 <Route path="/home" element={<RequirePermission permission="view"><InternalHomePage /></RequirePermission>} />

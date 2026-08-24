@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
 
 from app.api.deps import get_current_user, require_perm
@@ -237,7 +237,7 @@ def save_to_masterfile(
     if not request.records:
         raise HTTPException(status_code=400, detail="No records to save")
     try:
-        response = processing_service.save_records(request.records, user=user["username"])
+        response = processing_service.save_records(request.records, user=user["username"], role=user["role"])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -279,7 +279,7 @@ def update_record(
     user: Annotated[dict, Depends(require_perm("edit"))],
 ):
     try:
-        return record_service.update_record(case_id, request.fields, user=user["username"])
+        return record_service.update_record(case_id, request.fields, user=user["username"], role=user["role"])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -290,7 +290,7 @@ def soft_delete_records(
     user: Annotated[dict, Depends(require_perm("delete"))],
 ):
     try:
-        return record_service.soft_delete(request.case_ids, user=user["username"])
+        return record_service.soft_delete(request.case_ids, user=user["username"], role=user["role"])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -301,7 +301,7 @@ def permanent_delete_records(
     user: Annotated[dict, Depends(require_perm("delete"))],
 ):
     try:
-        return record_service.permanent_delete(request.case_ids, user=user["username"])
+        return record_service.permanent_delete(request.case_ids, user=user["username"], role=user["role"])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -312,7 +312,7 @@ def restore_records(
     user: Annotated[dict, Depends(require_perm("restore"))],
 ):
     try:
-        return record_service.restore(request.case_ids, user=user["username"])
+        return record_service.restore(request.case_ids, user=user["username"], role=user["role"])
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -370,7 +370,7 @@ def reset_masterfile(
 ):
     """Clear all masterfile data rows so the next insert starts at Case_ID 1."""
     try:
-        result = record_service.reset_masterfile(user=user["username"])
+        result = record_service.reset_masterfile(user=user["username"], role=user["role"])
         processing_service.clear_uploads()
         return result
     except Exception as exc:
@@ -447,13 +447,11 @@ def get_excel_layout(_: Annotated[dict, Depends(get_current_user)]):
 
 @router.get("/download")
 def download_masterfile(_: Annotated[dict, Depends(require_perm("download"))]):
-    path = excel_service.get_masterfile_path()
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Masterfile not found")
-    return FileResponse(
-        path=path,
-        filename="RMA_MASTER.xlsx",
+    content = excel_service.generate_export_workbook()
+    return Response(
+        content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="RMA_MASTER.xlsx"'},
     )
 
 

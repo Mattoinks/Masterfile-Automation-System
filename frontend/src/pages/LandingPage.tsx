@@ -162,7 +162,7 @@ export function LandingPage() {
 
               <Button
                 className="mt-auto w-full justify-between"
-                onClick={() => navigate(card.key === 'requester' ? '/portal' : '/login')}
+                onClick={() => navigate(card.key === 'requester' ? '/portal/login' : '/login')}
               >
                 {card.cta}
                 <ArrowRight className="h-4 w-4" />

@@ -395,7 +395,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleFilesSelected = async (files: File[]) => {
     if (isReadOnly) {
-      setMessage({ type: 'error', text: 'Viewer role cannot upload files.' });
+      setMessage({ type: 'error', text: 'Your role does not have permission to upload files.' });
       return;
     }
     setIsUploading(true);
@@ -607,7 +607,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleSave = async () => {
     if (isReadOnly) {
-      setMessage({ type: 'error', text: 'Viewer role cannot insert records.' });
+      setMessage({ type: 'error', text: 'Your role does not have permission to insert records.' });
       return;
     }
     if (lockStatus?.read_only && lockStatus.user !== user?.username) {

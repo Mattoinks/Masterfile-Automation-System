@@ -1,0 +1,5 @@
+# Dependencies for supabase/backfill.py only. This script runs standalone,
+# once, outside the FastAPI app - psycopg isn't added to backend/requirements.txt
+# until Phase 1, when backend/app/services/db.py actually starts using it.
+psycopg[binary]>=3.2.0
+openpyxl>=3.1.5

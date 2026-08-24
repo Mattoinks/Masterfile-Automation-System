@@ -20,16 +20,17 @@ REQUEST_STATUSES = ["New", "Pending", "Approved"]
 class RequestFieldDef(BaseModel):
     key: str
     label: str
-    type: Literal["text", "textarea", "number", "date"]
+    type: Literal["text", "textarea", "number", "date", "select"]
     required: bool = True
+    options: list[str] | None = None
 
 
 REQUEST_FIELDS: list[RequestFieldDef] = [
     RequestFieldDef(key="customer_name", label="Name of Customer", type="text"),
-    RequestFieldDef(key="dn_number", label="DN Number / Reference (if known)", type="text", required=False),
+    RequestFieldDef(key="priority", label="Priority", type="select", options=["Normal", "High", "Critical"]),
     RequestFieldDef(key="problem_description", label="Problem Description", type="textarea"),
     RequestFieldDef(key="lot_qty", label="How many lots / qty", type="text"),
-    RequestFieldDef(key="test_flow", label="Test Flow", type="text"),
+    RequestFieldDef(key="test_flow", label="Recommended Rework Flow", type="text"),
     RequestFieldDef(key="date_of_return", label="Date of Return", type="date"),
     RequestFieldDef(key="expected_finish_date", label="Expected Finish Date", type="date"),
 ]

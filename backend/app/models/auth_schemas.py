@@ -32,6 +32,14 @@ class CreateUserRequest(BaseModel):
     role: str
 
 
+class RegisterRequesterRequest(BaseModel):
+    """Public self-registration - role is never taken from the client,
+    always hardcoded to 'requester' server-side (see auth_routes.py)."""
+    username: str
+    password: str
+    display_name: str
+
+
 class UpdateUserRequest(BaseModel):
     display_name: Optional[str] = None
     role: Optional[str] = None

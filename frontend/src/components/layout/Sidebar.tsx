@@ -11,9 +11,6 @@ import {
   Settings,
   Factory,
   Users,
-  ScrollText,
-  Search,
-  Download,
   ChevronDown,
   LogOut,
   Inbox,
@@ -77,25 +74,6 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       items: [
         { to: '/requests', icon: Inbox, label: 'Incoming RMA Requests', permission: 'manage_requests' },
         { to: '/history', icon: History, label: 'Audit Logs', permission: 'view_logs' },
-      ],
-    },
-  ],
-  viewer: [
-    {
-      heading: 'Main',
-      items: [
-        { to: '/home', icon: Home, label: 'Home', permission: 'view' },
-        { to: '/', icon: LayoutDashboard, label: 'Dashboard', permission: 'view' },
-        { to: '/masterfile', icon: FileSpreadsheet, label: 'FY2526 Masterfile', permission: 'view' },
-        { to: '/masterfile-2526', icon: Layers, label: '2526 Masterfile', permission: 'view' },
-        { to: '/search', icon: Search, label: 'Search', permission: 'search' },
-      ],
-    },
-    {
-      heading: 'Management',
-      items: [
-        { to: '/history', icon: ScrollText, label: 'Audit Logs', permission: 'view_logs' },
-        { to: '/download', icon: Download, label: 'Download', permission: 'download' },
       ],
     },
   ],

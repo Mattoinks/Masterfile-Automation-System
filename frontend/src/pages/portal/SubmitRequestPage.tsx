@@ -12,7 +12,7 @@ import { REQUEST_FORM_FIELDS } from '@/lib/requestFormFields';
 export function SubmitRequestPage() {
   const { userName } = useAuth();
   const navigate = useNavigate();
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string>>({ priority: 'Normal' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submittedCode, setSubmittedCode] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function SubmitRequestPage() {
     try {
       const record = await submitRequest(values);
       setSubmittedCode(record.request_code);
-      setValues({});
+      setValues({ priority: 'Normal' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit request');
     } finally {
@@ -89,6 +89,16 @@ export function SubmitRequestPage() {
                   value={values[field.key] || ''}
                   onChange={(e) => setField(field.key, e.target.value)}
                 />
+              ) : field.type === 'select' ? (
+                <select
+                  className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 dark:border-slate-700 dark:bg-slate-900 dark:ring-offset-slate-950"
+                  value={values[field.key] || ''}
+                  onChange={(e) => setField(field.key, e.target.value)}
+                >
+                  {(field.options || []).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
               ) : (
                 <Input
                   type={field.type === 'date' ? 'date' : 'text'}

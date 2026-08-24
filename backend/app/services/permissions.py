@@ -4,7 +4,6 @@ from enum import Enum
 class UserRole(str, Enum):
     ADMIN = "admin"
     ENGINEER = "engineer"
-    VIEWER = "viewer"
     REQUESTER = "requester"
 
 
@@ -17,9 +16,6 @@ ROLE_PERMISSIONS: dict[UserRole, set[str]] = {
     UserRole.ENGINEER: {
         "view", "search", "download", "upload", "process", "edit", "insert",
         "replace", "revision", "view_logs", "manage_requests",
-    },
-    UserRole.VIEWER: {
-        "view", "search", "download", "view_logs",
     },
     UserRole.REQUESTER: {
         "submit_request",
@@ -40,7 +36,7 @@ def has_permission(role: str, permission: str) -> bool:
     try:
         user_role = UserRole(role.lower())
     except ValueError:
-        user_role = UserRole.VIEWER
+        return False  # unrecognized role - deny by default, never guess a fallback role
     return permission in ROLE_PERMISSIONS.get(user_role, set())
 
 

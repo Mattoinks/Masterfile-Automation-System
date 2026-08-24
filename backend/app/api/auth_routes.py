@@ -3,7 +3,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.api.deps import get_current_user, require_perm
-from app.models.auth_schemas import CreateUserRequest, LoginRequest, UpdateUserRequest
+from app.models.auth_schemas import (
+    CreateUserRequest,
+    LoginRequest,
+    RegisterRequesterRequest,
+    UpdateUserRequest,
+)
 from app.services.audit_logger import AuditLogger
 from app.services.auth_service import AuthError, get_auth_service
 
@@ -34,6 +39,26 @@ def login(request: LoginRequest):
     except AuthError as exc:
         audit.log(request.username, "N/A", "Login", "Failed", user=request.username)
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+@router.post("/register-requester")
+def register_requester(request: RegisterRequesterRequest):
+    """Public, unauthenticated - the only self-service account-creation
+    path. Always creates a requester account; role is never accepted from
+    the client (see AuthService.register_requester). Not linked from the
+    main site navigation - only reachable through the Requester Portal's
+    own entry flow."""
+    try:
+        user = get_auth_service().register_requester(
+            request.username, request.password, request.display_name
+        )
+        audit.log(
+            request.username, "N/A", "Requester Registered", "Success",
+            user=request.username, details=f"Display name: {request.display_name}",
+        )
+        return user
+    except AuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/logout")
@@ -106,5 +131,42 @@ def update_user(
             user=admin["username"],
         )
         return user
+    except AuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/pending-requesters")
+def list_pending_requesters(_: Annotated[dict, Depends(require_perm("manage_users"))]):
+    return {"requesters": get_auth_service().list_pending_requesters()}
+
+
+@router.post("/pending-requesters/{user_id}/approve")
+def approve_requester(
+    user_id: int,
+    admin: Annotated[dict, Depends(require_perm("manage_users"))],
+):
+    try:
+        user = get_auth_service().approve_requester(user_id)
+        audit.log(
+            user["username"], "N/A", "Requester Approved", "Success",
+            user=admin["username"],
+        )
+        return user
+    except AuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/pending-requesters/{user_id}/reject")
+def reject_requester(
+    user_id: int,
+    admin: Annotated[dict, Depends(require_perm("manage_users"))],
+):
+    try:
+        get_auth_service().reject_requester(user_id)
+        audit.log(
+            str(user_id), "N/A", "Requester Rejected", "Success",
+            user=admin["username"],
+        )
+        return {"message": "Rejected"}
     except AuthError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

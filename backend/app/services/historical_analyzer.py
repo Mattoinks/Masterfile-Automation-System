@@ -7,6 +7,7 @@ from typing import Any
 
 from openpyxl import load_workbook
 
+from app.services import db
 from app.services.excel_layout import WorksheetLayout, normalize_header
 from config.settings import FIELD_MAPPING_PATH, resolve_masterfile_path
 
@@ -29,7 +30,7 @@ class HistoricalAnalyzer:
         self._rows: list[HistoricalRow] = []
         self._by_dn: dict[str, HistoricalRow] = {}
         self._by_device: dict[str, list[HistoricalRow]] = {}
-        self._mtime: float = 0.0
+        self._mtime: str = ""
         self._field_headers = self._load_field_headers()
         self.refresh_if_stale()
 
@@ -39,6 +40,43 @@ class HistoricalAnalyzer:
         return mapping.get("pdf_to_excel_headers", {})
 
     def _reload(self) -> None:
+        """Phase 2: Postgres first, one query across every FY* row. Falls
+        back to the pre-Phase-2 Excel scan on any Postgres error, logged
+        loudly - never a silent gap, same fail-safe pattern as
+        record_service.py's reads and Track B's dual-write."""
+        try:
+            self._reload_from_postgres()
+            return
+        except Exception as exc:
+            from app.services.audit_logger import AuditLogger
+            AuditLogger().log(
+                filename="postgres-read", dn_number="historical_analyzer",
+                action="Postgres Read", status="FAILED", user="System", details=str(exc)[:500],
+            )
+        self._reload_from_excel()
+
+    def _reload_from_postgres(self) -> None:
+        from app.services.masterfile_reader import _clean
+
+        self._rows = []
+        pdf_fields = list(self._field_headers.keys())
+        with db.bypass_connection() as conn:
+            rows = conn.execute(
+                "select * from rma_masterfile_records where fy like 'FY%'"
+            ).fetchall()
+        for row in rows:
+            row_data = {k: _clean(row.get(k)) for k in pdf_fields if row.get(k) is not None}
+            if row_data.get("dn_number") or row_data.get("case_id"):
+                self._rows.append(
+                    HistoricalRow(
+                        sheet=str(row.get("fy") or ""),
+                        row_number=int(row.get("row_number") or 0),
+                        values=row_data,
+                    )
+                )
+        self._build_indexes()
+
+    def _reload_from_excel(self) -> None:
         self._rows = []
         path = resolve_masterfile_path()
         if not path.exists():
@@ -148,13 +186,26 @@ class HistoricalAnalyzer:
         return self._rows[-min(limit, len(self._rows)) :]
 
     def refresh(self) -> None:
-        self._mtime = 0.0
+        self._mtime = "<force-reload>"
         self.refresh_if_stale()
 
+    def _staleness_marker(self) -> str:
+        """Phase 2: SELECT MAX(updated_at) replaces the file-mtime check.
+        Falls back to file mtime (stringified, so it can't collide with a
+        Postgres timestamp string) on any Postgres error."""
+        try:
+            with db.bypass_connection() as conn:
+                row = conn.execute("select max(updated_at) as m from rma_masterfile_records").fetchone()
+            if row and row["m"]:
+                return row["m"].isoformat()
+            return ""
+        except Exception:
+            path = resolve_masterfile_path()
+            return f"mtime:{path.stat().st_mtime if path.exists() else 0.0}"
+
     def refresh_if_stale(self) -> None:
-        path = resolve_masterfile_path()
-        mtime = path.stat().st_mtime if path.exists() else 0.0
-        if mtime == self._mtime and self._rows:
+        marker = self._staleness_marker()
+        if marker == self._mtime and self._rows:
             return
-        self._mtime = mtime
+        self._mtime = marker
         self._reload()

@@ -70,3 +70,6 @@ Thumbs.db
 
 # Downloaded local tools (not project source)
 cloudflared.exe
+
+# Local Claude Code tool state (agent worktrees, etc.) - never project content
+.claude/

@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Plus, Users, Pencil, Check, X } from 'lucide-react';
-import { createUser, fetchUsers, updateUser, type AuthUser, type UserRole } from '@/api';
+import { Plus, Users, Pencil, Check, X, UserCheck, UserX, Clock } from 'lucide-react';
+import {
+  approveRequester,
+  createUser,
+  fetchPendingRequesters,
+  fetchUsers,
+  rejectRequester,
+  updateUser,
+  type AuthUser,
+  type UserRole,
+} from '@/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,7 +19,9 @@ import { ROLE_LABELS } from '@/context/AuthContext';
 
 export function UserManagementPage() {
   const [users, setUsers] = useState<AuthUser[]>([]);
+  const [pending, setPending] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingBusyId, setPendingBusyId] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     username: '',
@@ -22,14 +33,35 @@ export function UserManagementPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetchUsers();
-      setUsers(res.users);
+      const [usersRes, pendingRes] = await Promise.all([fetchUsers(), fetchPendingRequesters()]);
+      setUsers(usersRes.users);
+      setPending(pendingRes.requesters);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { load(); }, []);
+
+  const handleApprove = async (userId: number) => {
+    setPendingBusyId(userId);
+    try {
+      await approveRequester(userId);
+      await load();
+    } finally {
+      setPendingBusyId(null);
+    }
+  };
+
+  const handleReject = async (userId: number) => {
+    setPendingBusyId(userId);
+    try {
+      await rejectRequester(userId);
+      await load();
+    } finally {
+      setPendingBusyId(null);
+    }
+  };
 
   const handleAdd = async () => {
     await createUser(form);
@@ -83,12 +115,68 @@ export function UserManagementPage() {
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Users className="h-7 w-7" /> User Management
           </h2>
-          <p className="text-sm text-slate-500">Add, edit, disable users and reset roles (Admin only)</p>
+          <p className="text-sm text-slate-500">
+            Manage internal Admin/Engineer accounts (Admin only). Requester accounts self-register
+            through the Requester Portal and just need your approval below.
+          </p>
         </div>
         <Button onClick={() => setShowAdd(true)}>
           <Plus className="h-4 w-4" /> Add User
         </Button>
       </div>
+
+      {pending.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-600" />
+              Pending Requester Approvals ({pending.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Full Name</TableHead>
+                  <TableHead>Requested</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pending.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.username}</TableCell>
+                    <TableCell>{u.display_name}</TableCell>
+                    <TableCell className="text-xs text-slate-500">
+                      {u.created_at ? new Date(u.created_at).toLocaleString() : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleApprove(u.id)}
+                          disabled={pendingBusyId === u.id}
+                        >
+                          <UserCheck className="h-4 w-4" /> Approve
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReject(u.id)}
+                          disabled={pendingBusyId === u.id}
+                        >
+                          <UserX className="h-4 w-4" /> Reject
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {showAdd && (
         <Card>
@@ -104,8 +192,6 @@ export function UserManagementPage() {
             >
               <option value="admin">{ROLE_LABELS.admin}</option>
               <option value="engineer">{ROLE_LABELS.engineer}</option>
-              <option value="viewer">{ROLE_LABELS.viewer}</option>
-              <option value="requester">{ROLE_LABELS.requester}</option>
             </select>
             <div className="col-span-2 flex gap-2">
               <Button onClick={handleAdd}>Create</Button>
@@ -131,7 +217,7 @@ export function UserManagementPage() {
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-8">Loading...</TableCell></TableRow>
-              ) : users.map((u) => {
+              ) : users.filter((u) => u.role !== 'requester').map((u) => {
                 const isEditing = editingId === u.id;
                 return (
                   <TableRow key={u.id}>
@@ -156,8 +242,6 @@ export function UserManagementPage() {
                       >
                         <option value="admin">{ROLE_LABELS.admin}</option>
                         <option value="engineer">{ROLE_LABELS.engineer}</option>
-                        <option value="viewer">{ROLE_LABELS.viewer}</option>
-                        <option value="requester">{ROLE_LABELS.requester}</option>
                       </select>
                     </TableCell>
                     <TableCell>
