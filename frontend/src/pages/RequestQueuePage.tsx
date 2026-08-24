@@ -2,16 +2,17 @@ import { Fragment, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Inbox } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { fetchRequestQueue, updateRequestStatus, REQUEST_STATUSES, type RmaRequestRecord } from '@/api';
 import { REQUEST_FORM_FIELDS } from '@/lib/requestFormFields';
 
-const STATUS_VARIANT: Record<string, 'required' | 'history' | 'success'> = {
-  New: 'required',
-  Pending: 'history',
-  Approved: 'success',
+// Amber/blue/green per status, so the row tint communicates status at a
+// glance without needing a separate badge next to the dropdown.
+const STATUS_ROW_CLASS: Record<string, string> = {
+  New: 'border-l-4 border-l-amber-400 bg-amber-50/60 dark:border-l-amber-600 dark:bg-amber-950/20',
+  Pending: 'border-l-4 border-l-blue-400 bg-blue-50/60 dark:border-l-blue-600 dark:bg-blue-950/20',
+  Approved: 'border-l-4 border-l-green-400 bg-green-50/60 dark:border-l-green-600 dark:bg-green-950/20',
 };
 
 // Fields shown only in the expanded detail row, kept off the main table so
@@ -82,7 +83,7 @@ export function RequestQueuePage() {
                 <TableHead>Status</TableHead>
                 <TableHead>Requester</TableHead>
                 <TableHead>Customer</TableHead>
-                <TableHead>DN Number</TableHead>
+                <TableHead>Priority</TableHead>
                 <TableHead>Lots/Qty</TableHead>
                 <TableHead>Return Date</TableHead>
                 <TableHead>Expected Finish</TableHead>
@@ -100,7 +101,12 @@ export function RequestQueuePage() {
                   return (
                     <Fragment key={r.id}>
                       <TableRow
-                        className={cn('cursor-pointer', isExpanded && 'bg-brand-50 dark:bg-brand-950/30')}
+                        className={cn(
+                          'cursor-pointer',
+                          isExpanded
+                            ? 'bg-brand-50 dark:bg-brand-950/30'
+                            : STATUS_ROW_CLASS[r.status] || 'border-l-4 border-l-transparent'
+                        )}
                         onClick={() => setExpandedId(isExpanded ? null : r.id)}
                       >
                         <TableCell className="font-mono font-medium">{r.request_code}</TableCell>
@@ -114,13 +120,10 @@ export function RequestQueuePage() {
                               <option key={s} value={s}>{s}</option>
                             ))}
                           </select>
-                          <Badge variant={STATUS_VARIANT[r.status] || 'secondary'} className="ml-2 hidden md:inline-flex">
-                            {r.status}
-                          </Badge>
                         </TableCell>
                         <TableCell>{r.requester_display_name}</TableCell>
                         <TableCell>{r.customer_name}</TableCell>
-                        <TableCell>{r.dn_number || '—'}</TableCell>
+                        <TableCell>{r.fields.priority || '—'}</TableCell>
                         <TableCell>{r.fields.lot_qty || '—'}</TableCell>
                         <TableCell>{r.fields.date_of_return || '—'}</TableCell>
                         <TableCell>{r.fields.expected_finish_date || '—'}</TableCell>

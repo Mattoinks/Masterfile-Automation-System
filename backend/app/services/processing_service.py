@@ -22,10 +22,15 @@ from app.services.autofill_service import AutofillService
 from app.services.backup_service import BackupService
 from app.services.duplicate_service import DuplicateService
 from app.services.excel_service import ExcelLockedError, ExcelService, ExcelServiceError
+from app.services import masterfile_reader
 from app.services.index_db import get_index
 from app.services.lock_service import ExcelLockService
 from app.services.pdf_analysis_service import PdfAnalysisService
-from app.services.pdf_extractor import PDFExtractionError, consolidate_extractions_by_dn, extract_dn_data
+from app.services.pdf_extractor import (
+    PDFExtractionError,
+    consolidate_extractions_by_dn,
+    extract_dn_data_smart,
+)
 from app.services.processing_progress import get_processing_progress
 from app.services.permissions import require_permission
 from app.services.validation import validate_record
@@ -65,11 +70,18 @@ class ProcessingService:
         return saved
 
     def _load_master_records_from_index(self) -> list[ExistingMasterRecord]:
-        index = get_index()
-        rows = index.get_all_active_records()
-        if not rows:
-            self.excel.sync_index_from_excel()
+        try:
+            rows = masterfile_reader.get_all_active_records()
+        except Exception as exc:
+            self.logger.log(
+                filename="postgres-read", dn_number="_load_master_records_from_index",
+                action="Postgres Read", status="FAILED", user="System", details=str(exc)[:500],
+            )
+            index = get_index()
             rows = index.get_all_active_records()
+            if not rows:
+                self.excel.sync_index_from_excel()
+                rows = index.get_all_active_records()
         records: list[ExistingMasterRecord] = []
         for row in rows:
             fields = row.get("fields") or row
@@ -181,7 +193,7 @@ class ProcessingService:
 
         try:
             report("extracting", f"Extracting {pdf_path.name}…")
-            pdf_data = extract_dn_data(pdf_path, on_progress=report)
+            pdf_data = extract_dn_data_smart(pdf_path, on_progress=report)
             return pdf_data, pdf_path.name, []
         except PDFExtractionError as exc:
             return {"dn_number": "", "source_files": [pdf_path.name]}, pdf_path.name, [str(exc)]
@@ -330,7 +342,9 @@ class ProcessingService:
             "differences": record.duplicate_match.field_differences if record.duplicate_match else {},
         }
 
-    def save_records(self, save_requests: list[SaveRecordRequest], user: str = "System") -> SaveResponse:
+    def save_records(
+        self, save_requests: list[SaveRecordRequest], user: str = "System", role: str = ""
+    ) -> SaveResponse:
         if self.lock.is_locked_by_other(user):
             lock_status = self.lock.get_status()
             return SaveResponse(
@@ -377,7 +391,7 @@ class ProcessingService:
 
                     try:
                         if is_duplicate and action == DuplicateAction.FORCE_INSERT:
-                            require_permission(self._role_from_user(user), "force_insert")
+                            require_permission(role, "force_insert")
                             case_id = session.insert_record(payload)
                             force_inserted += 1
                             record.status = RecordStatus.FORCE_INSERTED
@@ -458,14 +472,6 @@ class ProcessingService:
             errors=errors,
             backup_file=backup_path.name if backup_path else None,
         )
-
-    @staticmethod
-    def _role_from_user(user: str) -> str:
-        if user.lower() in ("admin", "administrator"):
-            return "admin"
-        if user.lower() == "viewer":
-            return "viewer"
-        return "engineer"
 
     def _move_to_processed(self, filename: str) -> None:
         src = UPLOADS_DIR / filename

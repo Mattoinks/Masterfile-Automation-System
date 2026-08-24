@@ -5,12 +5,19 @@ python-multipart>=0.0.12
 bcrypt>=4.2.0
 python-dotenv>=1.0.1
 
+# Supabase Postgres (see supabase/README.md)
+psycopg[binary]>=3.2.0
+psycopg-pool>=3.2.0
+
 # PDF text extraction
 pdfplumber>=0.11.4
 PyMuPDF>=1.24.0
 
 # Excel masterfile
 openpyxl>=3.1.5
+
+# Gemini API (AI-based PDF extraction for scanned DNs, optional, free tier)
+google-genai>=1.0.0
 
 # OCR for scanned/image-only PDFs (heavy: OpenCV + ONNX ~200MB+ installed).
 # Required for full functionality on Railway/Render/VPS — do NOT deploy this stack to Vercel.

@@ -50,6 +50,17 @@ def _page_count(pdf_path: Path) -> int:
         return doc.page_count
 
 
+def has_native_text(pdf_path: Path, _cached_text: str | None = None) -> bool:
+    """True if PyMuPDF finds a usable text layer - the same check
+    _extract_text() uses below to decide whether OCR is needed at all.
+    Shared so extract_dn_data_smart()'s Gemini-vs-local routing decision can
+    never drift out of sync with the pipeline's own OCR-or-not decision.
+    Pass _cached_text to avoid a redundant PyMuPDF read when the caller
+    already has the extracted text on hand."""
+    text = _cached_text if _cached_text is not None else _extract_text_pymupdf(pdf_path)
+    return bool(text.strip())
+
+
 def _extract_text(
     pdf_path: Path,
     on_progress: ProgressCallback | None = None,
@@ -61,7 +72,7 @@ def _extract_text(
         on_progress("reading", "Reading PDF text…")
 
     text = _extract_text_pymupdf(pdf_path)
-    if text.strip():
+    if has_native_text(pdf_path, _cached_text=text):
         if on_progress:
             on_progress("parsing", "Parsing extracted fields…")
         return text
@@ -721,6 +732,93 @@ def extract_dn_data(
 
     if ocr_persistent_cache:
         save_persistent_ocr_cache(file_hash, OCR_RENDER_SCALE, ocr_persistent_cache)
+
+    return data
+
+
+_GEMINI_STR_FIELDS = (
+    "dn_number", "dn_date", "customer_name", "device", "package", "quantity",
+    "lot_number", "material_number", "rma_number", "plant_code", "owner",
+    "rework_flow_procedure", "document_type",
+)
+_GEMINI_LIST_FIELDS = (
+    "all_lot_numbers", "all_devices", "all_date_codes", "all_material_numbers",
+    "all_finished_prod_nos", "all_test_bau",
+)
+
+
+def extract_dn_data_smart(
+    pdf_file: str | Path,
+    on_progress: ProgressCallback | None = None,
+) -> dict[str, Any]:
+    """Adaptive routing between the local pipeline and Gemini.
+
+    Native-text PDFs always use the fast local pipeline (extract_dn_data) -
+    Gemini is never invoked for them, regardless of configuration. Scanned/
+    image PDFs (no native PyMuPDF text) are the only candidates for Gemini,
+    and only when both GEMINI_API_KEY is set and GEMINI_SCANNED_PDF_ENABLED
+    is explicitly true (see config.settings - the latter is a hard rollout
+    gate meant to stay off until backend/scripts/benchmark_gemini_extraction.py
+    has been run against real scanned DNs from this project). Any Gemini
+    failure - quota exhaustion, the configured model being unavailable to
+    this API project, any other failure, or failed output validation - falls
+    back to the existing local pipeline. No branch ever retries a different
+    or paid Gemini model."""
+    from config.settings import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_SCANNED_PDF_ENABLED
+
+    pdf_path = Path(pdf_file)
+    if not pdf_path.exists():
+        raise PDFExtractionError(f"File not found: {pdf_path}")
+
+    if has_native_text(pdf_path) or not (GEMINI_API_KEY and GEMINI_SCANNED_PDF_ENABLED):
+        return extract_dn_data(pdf_path, on_progress=on_progress)
+
+    from app.services.audit_logger import AuditLogger
+    from app.services.gemini_extractor import (
+        GeminiExtractionError,
+        GeminiModelUnavailableError,
+        GeminiQuotaExhaustedError,
+        extract_dn_data_with_gemini,
+    )
+
+    if on_progress:
+        on_progress("gemini", f"Scanned PDF — trying Gemini ({GEMINI_MODEL})…")
+
+    try:
+        data = extract_dn_data_with_gemini(pdf_path)
+    except GeminiQuotaExhaustedError as exc:
+        AuditLogger().log(
+            pdf_path.name, "", "gemini_extraction", "fallback",
+            details=f"Gemini free-tier quota unavailable, using fallback extraction: {exc}",
+        )
+        return extract_dn_data(pdf_path, on_progress=on_progress)
+    except GeminiModelUnavailableError as exc:
+        AuditLogger().log(
+            pdf_path.name, "", "gemini_extraction", "fallback",
+            details=f"Configured Gemini model '{GEMINI_MODEL}' is not available to this API project, using fallback extraction: {exc}",
+        )
+        return extract_dn_data(pdf_path, on_progress=on_progress)
+    except GeminiExtractionError as exc:
+        AuditLogger().log(
+            pdf_path.name, "", "gemini_extraction", "fallback",
+            details=f"Gemini extraction failed, using fallback extraction: {exc}",
+        )
+        return extract_dn_data(pdf_path, on_progress=on_progress)
+
+    data["source_files"] = [pdf_path.name]
+    data["page_count"] = _page_count(pdf_path)
+    for key in _GEMINI_STR_FIELDS:
+        data.setdefault(key, "")
+    for key in _GEMINI_LIST_FIELDS:
+        data.setdefault(key, [])
+    data.setdefault("lot_table_rows", [])
+
+    AuditLogger().log(
+        pdf_path.name, str(data.get("dn_number") or ""), "gemini_extraction", "success",
+        details=f"Extracted via Gemini ({GEMINI_MODEL})",
+    )
+    if on_progress:
+        on_progress("parsing", "Gemini extraction complete…")
 
     return data
 

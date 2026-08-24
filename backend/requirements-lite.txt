@@ -8,3 +8,6 @@ bcrypt>=4.2.0
 pdfplumber>=0.11.4
 PyMuPDF>=1.24.0
 openpyxl>=3.1.5
+
+# Gemini API (AI-based PDF extraction for scanned DNs, optional, free tier)
+google-genai>=1.0.0
