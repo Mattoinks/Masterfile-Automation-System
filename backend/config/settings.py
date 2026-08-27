@@ -53,17 +53,49 @@ AUTH_DB_PATH = INDEX_DIR / "auth.db"
 REQUESTS_DB_PATH = INDEX_DIR / "requests.db"
 OCR_CACHE_DIR = STORAGE_DIR / "ocr_cache"
 
-# PDF processing performance (override via environment variables)
-PDF_PROCESS_WORKERS = int(os.environ.get("PDF_PROCESS_WORKERS", "0")) or min(
-    16, max(4, (os.cpu_count() or 4))
-)
+def _container_cpu_quota() -> int | None:
+    """Reads the actual cgroup CPU quota (cores) when running in a
+    container. os.cpu_count() reports the HOST's total logical CPUs, not
+    what a Kubernetes/OpenShift pod's resource limit actually entitles it
+    to - on a node with e.g. 16 host cores but a pod capped at "3 cores",
+    os.cpu_count() still returns 16, so sizing thread-pool defaults off it
+    causes the app to spin up far more concurrent OCR work than the pod's
+    CPU quota can actually service. That shows up as severe CPU throttling
+    under load, which looks exactly like requests timing out. Cgroup v2
+    (standard on modern Kubernetes/OpenShift) exposes the real quota at
+    /sys/fs/cgroup/cpu.max as "<quota> <period>" in microseconds, or "max"
+    if unlimited."""
+    try:
+        raw = Path("/sys/fs/cgroup/cpu.max").read_text().split()
+        if raw[0] == "max":
+            return None
+        quota, period = int(raw[0]), int(raw[1])
+        return max(1, quota // period)
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+# PDF processing performance (override via environment variables).
+# Both worker counts below default off the container's real CPU quota when
+# detectable (see _container_cpu_quota), not the host's full core count -
+# PDF_PROCESS_WORKERS (per-file parallelism) and OCR_MAX_PARALLEL_PAGES
+# (per-page parallelism WITHIN each file) multiply together for worst-case
+# thread count, so both need to stay small on a CPU-quota-constrained
+# deployment (e.g. OpenShift) or the app oversubscribes its own quota and
+# gets throttled into timeouts instead of actually finishing faster.
+_cpu_quota = _container_cpu_quota() or os.cpu_count() or 4
+PDF_PROCESS_WORKERS = int(os.environ.get("PDF_PROCESS_WORKERS", "0")) or min(4, max(2, _cpu_quota))
 # 1.8 measured (real DN PDF, this repo's benchmark) to cut OCR time ~19% vs
 # the previous 2.5 default with NO loss in extracted character count (in
 # fact slightly more: 4454 vs 4447 chars on the test document) - 1.5 was
 # faster still but measurably lost ~8% of extracted characters, so it's not
 # used. Override via env var if a specific deployment needs to tune this.
 OCR_RENDER_SCALE = float(os.environ.get("OCR_RENDER_SCALE", "1.8"))
-OCR_MAX_PARALLEL_PAGES = int(os.environ.get("OCR_MAX_PARALLEL_PAGES", "4"))
+# Nests INSIDE PDF_PROCESS_WORKERS (worst case: PDF_PROCESS_WORKERS x
+# OCR_MAX_PARALLEL_PAGES concurrent OCR threads at once), so this stays
+# small and quota-aware rather than a flat "4" - see the comment above
+# PDF_PROCESS_WORKERS.
+OCR_MAX_PARALLEL_PAGES = int(os.environ.get("OCR_MAX_PARALLEL_PAGES", "0")) or min(2, max(1, _cpu_quota))
 
 # RMA Request Portal: outbound email notification (see request_notify_service.py).
 # Leave SMTP_HOST unset to disable notifications without breaking submissions.
