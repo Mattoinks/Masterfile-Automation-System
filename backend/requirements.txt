@@ -21,5 +21,9 @@ google-genai>=1.0.0
 
 # OCR for scanned/image-only PDFs (heavy: OpenCV + ONNX ~200MB+ installed).
 # Required for full functionality on Railway/Render/VPS — do NOT deploy this stack to Vercel.
-rapidocr-onnxruntime>=1.2.0,<1.3.0; python_version>="3.13"
-rapidocr-onnxruntime>=1.3.0; python_version<"3.13"
+# PP-OCRv6 models (det/rec) - verified faster AND more accurate than the
+# previous rapidocr-onnxruntime/PP-OCRv3 pin on this project's real test
+# documents (see backend/app/services/ocr_service.py). Not the same package
+# as the old rapidocr-onnxruntime - this is the actively maintained
+# successor, still onnxruntime-backed (no PaddlePaddle dependency added).
+rapidocr>=3.9.0

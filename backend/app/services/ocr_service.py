@@ -23,13 +23,24 @@ class OCRUnavailableError(OCRExtractionError):
 @lru_cache(maxsize=1)
 def _get_ocr_engine():
     try:
-        from rapidocr_onnxruntime import RapidOCR
+        from rapidocr import RapidOCR
     except ImportError as exc:
         raise OCRUnavailableError(
             "OCR dependencies are not installed. Install full requirements "
             "(pip install -r requirements.txt) to process scanned/image-only PDFs."
         ) from exc
     return RapidOCR()
+
+
+def _parse_ocr_result(result) -> list[tuple[list[list[float]], str]]:
+    """Adapts the rapidocr package's RapidOCROutput (.boxes/.txts, both
+    index-aligned - verified directly against a real call, not assumed from
+    docs) back into this module's existing (box, text) tuple contract, so
+    every caller of render_page_ocr_boxes/_ocr_png_bytes is unaffected by
+    the underlying engine's own return shape."""
+    if result.boxes is None:
+        return []
+    return list(zip((box.tolist() for box in result.boxes), result.txts))
 
 
 def file_content_hash(pdf_path: Path) -> str:
@@ -102,8 +113,7 @@ def render_page_ocr_boxes(
     matrix = fitz.Matrix(scale, scale)
     pixmap = page.get_pixmap(matrix=matrix, alpha=False)
     ocr = _get_ocr_engine()
-    result, _ = ocr(pixmap.tobytes("png"))
-    boxes = [(line[0], line[1]) for line in result] if result else []
+    boxes = _parse_ocr_result(ocr(pixmap.tobytes("png")))
 
     if cache is not None:
         cache[page.number] = boxes
@@ -130,8 +140,7 @@ def _render_page_png(page: fitz.Page, scale: float) -> bytes:
 
 def _ocr_png_bytes(png_bytes: bytes) -> list[tuple[list[list[float]], str]]:
     ocr = _get_ocr_engine()
-    result, _ = ocr(png_bytes)
-    return [(line[0], line[1]) for line in result] if result else []
+    return _parse_ocr_result(ocr(png_bytes))
 
 
 def extract_text_with_ocr(
