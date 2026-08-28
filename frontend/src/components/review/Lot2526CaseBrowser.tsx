@@ -30,7 +30,10 @@ function rowToEntry(row: Lot2526CaseDetail['rows'][number]): Lot2526LotCreationE
   return {
     created_lot_no: row.created_lot_no || row.suggested_created_lot_no,
     date_created: row.date_created || TODAY,
-    created_date_code: row.created_date_code || row.date_code,
+    // Blank until explicitly filled in - was previously defaulting to the
+    // original label's date_code, which pre-filled every row with a value
+    // nobody had actually entered yet.
+    created_date_code: row.created_date_code,
     physical_lot_qty: row.physical_lot_qty,
     lot_code: row.lot_code,
   };
@@ -46,6 +49,8 @@ export function Lot2526CaseBrowser() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [rowEdits, setRowEdits] = useState<Record<number, Lot2526LotCreationEntry>>({});
   const [savingRow, setSavingRow] = useState<number | null>(null);
+  const [savingAll, setSavingAll] = useState(false);
+  const [saveAllProgress, setSaveAllProgress] = useState<{ done: number; total: number } | null>(null);
   const [showAddRow, setShowAddRow] = useState(false);
   const [newRowEntry, setNewRowEntry] = useState(EMPTY_ENTRY);
   const [savingNewRow, setSavingNewRow] = useState(false);
@@ -102,6 +107,34 @@ export function Lot2526CaseBrowser() {
       setError(err instanceof Error ? err.message : 'Failed to save row');
     } finally {
       setSavingRow(null);
+    }
+  };
+
+  const onSaveAll = async () => {
+    if (selectedCaseNo == null || !detail) return;
+    const caseNo = selectedCaseNo;
+    const rows = detail.rows;
+    setSavingAll(true);
+    setError(null);
+    setSaveAllProgress({ done: 0, total: rows.length });
+    try {
+      // Sequential, not Promise.all - the backend holds a per-user edit
+      // lock while writing (see lock_service.is_locked_by_other in
+      // lot2526_routes.py), so concurrent saves would just fight over it.
+      let latest: Lot2526CaseDetail | null = null;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const entry = rowEdits[row.row_index] ?? rowToEntry(row);
+        latest = await updateLot2526RowLotCreation(caseNo, row.row_index, entry);
+        setSaveAllProgress({ done: i + 1, total: rows.length });
+      }
+      if (latest) applyDetail(latest);
+      await loadCases();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save all rows');
+    } finally {
+      setSavingAll(false);
+      setSaveAllProgress(null);
     }
   };
 
@@ -208,6 +241,19 @@ export function Lot2526CaseBrowser() {
 
             {!loadingDetail && detail && (
               <>
+                {can('insert') && detail.rows.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <Button size="sm" onClick={onSaveAll} disabled={savingAll || savingRow !== null}>
+                      {savingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                      {savingAll && saveAllProgress
+                        ? `Saving ${saveAllProgress.done}/${saveAllProgress.total}…`
+                        : 'Save All'}
+                    </Button>
+                    <span className="text-xs text-slate-500">
+                      Saves every row's current values in one go, instead of one at a time.
+                    </span>
+                  </div>
+                )}
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -238,7 +284,7 @@ export function Lot2526CaseBrowser() {
                               <Input
                                 className={isSuggested ? 'text-slate-400' : undefined}
                                 value={entry.created_lot_no}
-                                disabled={!can('insert')}
+                                disabled={!can('insert') || savingAll}
                                 onChange={(e) => setField('created_lot_no', e.target.value)}
                               />
                             </TableCell>
@@ -246,14 +292,14 @@ export function Lot2526CaseBrowser() {
                               <Input
                                 type="date"
                                 value={entry.date_created}
-                                disabled={!can('insert')}
+                                disabled={!can('insert') || savingAll}
                                 onChange={(e) => setField('date_created', e.target.value)}
                               />
                             </TableCell>
                             <TableCell>
                               <Input
                                 value={entry.created_date_code}
-                                disabled={!can('insert')}
+                                disabled={!can('insert') || savingAll}
                                 onChange={(e) => setField('created_date_code', e.target.value)}
                               />
                             </TableCell>
@@ -261,14 +307,14 @@ export function Lot2526CaseBrowser() {
                               <Input
                                 inputMode="numeric"
                                 value={entry.physical_lot_qty}
-                                disabled={!can('insert')}
+                                disabled={!can('insert') || savingAll}
                                 onChange={(e) => setField('physical_lot_qty', sanitizeQtyInput(e.target.value))}
                               />
                             </TableCell>
                             <TableCell>
                               <Input
                                 value={entry.lot_code}
-                                disabled={!can('insert')}
+                                disabled={!can('insert') || savingAll}
                                 onChange={(e) => setField('lot_code', e.target.value)}
                               />
                             </TableCell>
@@ -278,7 +324,7 @@ export function Lot2526CaseBrowser() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => onSaveRow(row.row_index)}
-                                  disabled={savingRow === row.row_index}
+                                  disabled={savingRow === row.row_index || savingAll}
                                 >
                                   {savingRow === row.row_index ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
