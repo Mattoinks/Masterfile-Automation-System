@@ -149,8 +149,8 @@ class Lot2526ExcelWriter:
                 next_case_no = (conn.execute("select max(case_no) as m from lot2526_cases").fetchone()["m"] or 0) + 1
                 for group in self._group_by_filename(fields_list):
                     case_row = conn.execute(
-                        "insert into lot2526_cases (case_no, test_bau) values (%s, %s) returning id",
-                        (next_case_no, group[0].get("test_bau")),
+                        "insert into lot2526_cases (case_no, test_bau, dn_number) values (%s, %s, %s) returning id",
+                        (next_case_no, group[0].get("test_bau"), group[0].get("dn_number")),
                     ).fetchone()
                     case_id = case_row["id"]
                     for line_order, fields in enumerate(group):
@@ -197,9 +197,12 @@ class Lot2526ExcelWriter:
             total_qty = sum(
                 float(l["return_qty_from_dc"]) for l in case_lines if l.get("return_qty_from_dc") is not None
             )
+            lot_numbers = [str(l["original_label_lot_no"]) for l in case_lines if l.get("original_label_lot_no")]
             result.append({
                 "case_no": case["case_no"],
                 "test_bau": str(case.get("test_bau") or ""),
+                "dn_number": str(case.get("dn_number") or ""),
+                "lot_numbers": lot_numbers,
                 "lot_line_count": lot_line_count,
                 "lot_creation_count": lot_creation_count,
                 "total_return_qty": int(total_qty) if total_qty == int(total_qty) else total_qty,
@@ -243,7 +246,12 @@ class Lot2526ExcelWriter:
                 "physical_lot_qty": "" if physical_qty is None else str(physical_qty),
                 "lot_code": str(line.get("lot_code") or ""),
             })
-        return {"case_no": case_no, "test_bau": str(case.get("test_bau") or ""), "rows": rows}
+        return {
+            "case_no": case_no,
+            "test_bau": str(case.get("test_bau") or ""),
+            "dn_number": str(case.get("dn_number") or ""),
+            "rows": rows,
+        }
 
     def update_row_lot_creation_fields(self, case_no: int, row_index: int, fields: dict[str, Any]) -> None:
         """Writes directly into an existing line's lot-creation fields.

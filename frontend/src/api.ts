@@ -847,6 +847,8 @@ export async function saveLot2526Records(
 export interface Lot2526CaseSummary {
   case_no: number;
   test_bau: string;
+  dn_number: string;
+  lot_numbers: string[];
   lot_line_count: number;
   lot_creation_count: number;
   total_return_qty: number;
@@ -876,6 +878,7 @@ export interface Lot2526CaseRow {
 export interface Lot2526CaseDetail {
   case_no: number;
   test_bau: string;
+  dn_number: string;
   rows: Lot2526CaseRow[];
 }
 

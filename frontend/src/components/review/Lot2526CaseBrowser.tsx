@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, Save, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Plus, Save, Search } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import {
 } from '@/api';
 
 const TODAY = new Date().toISOString().slice(0, 10);
+const CASES_PER_PAGE = 10;
 
 const EMPTY_ENTRY: Lot2526LotCreationEntry = {
   created_lot_no: '',
@@ -44,6 +45,7 @@ export function Lot2526CaseBrowser() {
   const [cases, setCases] = useState<Lot2526CaseSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
   const [selectedCaseNo, setSelectedCaseNo] = useState<number | null>(null);
   const [detail, setDetail] = useState<Lot2526CaseDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -158,8 +160,25 @@ export function Lot2526CaseBrowser() {
   const filteredCases = cases.filter((c) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
-    return String(c.case_no).includes(q) || c.test_bau.toLowerCase().includes(q);
+    return (
+      String(c.case_no).includes(q) ||
+      c.test_bau.toLowerCase().includes(q) ||
+      c.dn_number.toLowerCase().includes(q) ||
+      c.lot_numbers.some((lot) => lot.toLowerCase().includes(q))
+    );
   });
+
+  const pageCount = Math.max(1, Math.ceil(filteredCases.length / CASES_PER_PAGE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pagedCases = filteredCases.slice(
+    currentPage * CASES_PER_PAGE,
+    currentPage * CASES_PER_PAGE + CASES_PER_PAGE
+  );
+
+  const onSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(0); // A new search should always start back at the first page of results.
+  };
 
   return (
     <div className="space-y-6">
@@ -187,9 +206,9 @@ export function Lot2526CaseBrowser() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 className="pl-9"
-                placeholder="Search case No. or Test Bau"
+                placeholder="Search DN #, lot #, case No., or Test Bau"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => onSearchChange(e.target.value)}
               />
             </div>
             {loading ? (
@@ -197,30 +216,56 @@ export function Lot2526CaseBrowser() {
                 <Loader2 className="h-5 w-5 animate-spin" />
               </div>
             ) : (
-              <div className="max-h-[60vh] space-y-1 overflow-y-auto">
-                {filteredCases.map((c) => (
-                  <button
-                    key={c.case_no}
-                    onClick={() => openCase(c.case_no)}
-                    className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                      selectedCaseNo === c.case_no
-                        ? 'border-brand-700 bg-brand-50 dark:bg-brand-950/30'
-                        : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between font-medium">
-                      <span>No. {c.case_no}</span>
-                      <span className="text-xs text-slate-500">{c.total_return_qty}</span>
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {c.test_bau || '—'} · {c.lot_line_count} lot line(s) · {c.lot_creation_count} created
-                    </div>
-                  </button>
-                ))}
-                {!filteredCases.length && (
-                  <p className="py-6 text-center text-sm text-slate-400">No cases found.</p>
+              <>
+                <div className="space-y-1">
+                  {pagedCases.map((c) => (
+                    <button
+                      key={c.case_no}
+                      onClick={() => openCase(c.case_no)}
+                      className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                        selectedCaseNo === c.case_no
+                          ? 'border-brand-700 bg-brand-50 dark:bg-brand-950/30'
+                          : 'border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between font-medium">
+                        <span>No. {c.case_no}</span>
+                        <span className="text-xs text-slate-500">{c.total_return_qty}</span>
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        DN {c.dn_number || '—'} · {c.test_bau || '—'} · {c.lot_line_count} lot line(s) ·{' '}
+                        {c.lot_creation_count} created
+                      </div>
+                    </button>
+                  ))}
+                  {!filteredCases.length && (
+                    <p className="py-6 text-center text-sm text-slate-400">No cases found.</p>
+                  )}
+                </div>
+                {filteredCases.length > CASES_PER_PAGE && (
+                  <div className="flex items-center justify-between pt-1 text-xs text-slate-500">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={currentPage === 0}
+                    >
+                      <ChevronLeft className="h-4 w-4" /> Previous
+                    </Button>
+                    <span>
+                      Page {currentPage + 1} of {pageCount}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                      disabled={currentPage >= pageCount - 1}
+                    >
+                      Next <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -229,7 +274,9 @@ export function Lot2526CaseBrowser() {
           <CardHeader>
             <CardTitle>{detail ? `Case No. ${detail.case_no}` : 'Select a case'}</CardTitle>
             <CardDescription>
-              {detail ? `Test Bau: ${detail.test_bau || '—'}` : 'Choose a case from the list to view and edit its rows.'}
+              {detail
+                ? `DN ${detail.dn_number || '—'} · Test Bau: ${detail.test_bau || '—'}`
+                : 'Choose a case from the list to view and edit its rows.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

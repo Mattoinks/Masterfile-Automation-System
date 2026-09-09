@@ -68,6 +68,7 @@ def map_dn_to_breakdown_rows(dn_data: dict[str, Any]) -> list[dict[str, str]]:
     """
     test_bau_list = dn_data.get("all_test_bau") or []
     test_bau = str(test_bau_list[0]) if test_bau_list else ""
+    dn_number = str(dn_data.get("dn_number") or "")
 
     lot_table_rows = dn_data.get("lot_table_rows") or []
     if lot_table_rows:
@@ -85,6 +86,7 @@ def map_dn_to_breakdown_rows(dn_data: dict[str, Any]) -> list[dict[str, str]]:
     return [
         {
             "test_bau": test_bau,
+            "dn_number": dn_number,
             "original_label_lot_no": row["original_label_lot_no"],
             "date_code": row["date_code"],
             "return_qty_from_dc": row["return_qty_from_dc"],

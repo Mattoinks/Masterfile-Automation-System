@@ -21,6 +21,7 @@ class Lot2526BreakdownRecord(BaseModel):
     case_no: int | None = None
     record_id: str | None = None
     test_bau: str = ""
+    dn_number: str = ""
     original_label_lot_no: str = ""
     date_code: str = ""
     return_qty_from_dc: str = ""
@@ -54,6 +55,8 @@ class Lot2526CaseSummary(BaseModel):
 
     case_no: int
     test_bau: str = ""
+    dn_number: str = ""
+    lot_numbers: list[str] = []
     lot_line_count: int = 0
     lot_creation_count: int = 0
     total_return_qty: float = 0
@@ -95,4 +98,5 @@ class Lot2526CaseRow(BaseModel):
 class Lot2526CaseDetail(BaseModel):
     case_no: int
     test_bau: str = ""
+    dn_number: str = ""
     rows: list[Lot2526CaseRow] = []

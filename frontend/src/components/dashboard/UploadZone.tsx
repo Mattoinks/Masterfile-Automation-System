@@ -49,6 +49,15 @@ export function UploadZone() {
     return map;
   }, [records]);
 
+  // Once a file has gone through Extract & Validate (it has a record at
+  // all, regardless of the resulting status - New/Invalid/Duplicate all
+  // count as "no longer queued"), it belongs in the Processing Status
+  // list below, not in this queued-uploads strip.
+  const queuedFiles = useMemo(
+    () => uploadedFiles.filter((f) => !recordByFile.get(f.name)),
+    [uploadedFiles, recordByFile]
+  );
+
   const [dragging, setDragging] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [removingAll, setRemovingAll] = useState(false);
@@ -120,9 +129,9 @@ export function UploadZone() {
           </div>
         )}
 
-        {uploadedFiles.length > 0 && (
+        {queuedFiles.length > 0 && (
           <div className="mt-4 flex items-center justify-between gap-2">
-            <p className="text-xs text-slate-500">{uploadedFiles.length} file(s) queued</p>
+            <p className="text-xs text-slate-500">{queuedFiles.length} file(s) queued</p>
             <Button
               type="button"
               variant="ghost"
@@ -137,9 +146,9 @@ export function UploadZone() {
           </div>
         )}
 
-        {uploadedFiles.length > 0 && (
+        {queuedFiles.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {uploadedFiles.map((f) => {
+            {queuedFiles.map((f) => {
               const record = recordByFile.get(f.name);
               const status = fileStatus(record, isProcessing);
               const dn = record?.dn_number;

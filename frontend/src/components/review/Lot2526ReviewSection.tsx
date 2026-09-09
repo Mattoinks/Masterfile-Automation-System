@@ -1,9 +1,13 @@
-import { FileText } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/context/AppContext';
 import { cn, sanitizeQtyInput } from '@/lib/utils';
 import type { Lot2526BreakdownRecord } from '@/api';
+
+const ROWS_PER_PAGE = 10;
 
 // test_bau and disposition_or_ss_plan_name are excluded here - they're
 // mirrored read-only from the linked FY2526 record's Test Bau / Rework
@@ -24,22 +28,62 @@ const FIELD_LABELS: { key: keyof Lot2526BreakdownRecord; label: string }[] = [
 
 export function Lot2526ReviewSection() {
   const { lot2526Drafts, updateLot2526Draft, records, getRecordField } = useApp();
+  const [page, setPage] = useState(0);
 
   if (!lot2526Drafts.length) return null;
 
+  const pageCount = Math.max(1, Math.ceil(lot2526Drafts.length / ROWS_PER_PAGE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const startIndex = currentPage * ROWS_PER_PAGE;
+  const pageIndices = lot2526Drafts
+    .map((_, i) => i)
+    .slice(startIndex, startIndex + ROWS_PER_PAGE);
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>2526 Breakdown</CardTitle>
-        <CardDescription>
-          Extracted from the same DN PDF(s) above. Reviewed here, saved together with the FY2526 records.
-        </CardDescription>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+        <div>
+          <CardTitle>2526 Breakdown</CardTitle>
+          <CardDescription>
+            Extracted from the same DN PDF(s) above. Reviewed here, saved together with the FY2526 records.
+          </CardDescription>
+        </div>
+        {lot2526Drafts.length > ROWS_PER_PAGE && (
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+            >
+              <ChevronLeft className="h-4 w-4" /> Previous
+            </Button>
+            <span>
+              Row {startIndex + 1}-{Math.min(startIndex + ROWS_PER_PAGE, lot2526Drafts.length)} of{' '}
+              {lot2526Drafts.length}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              disabled={currentPage >= pageCount - 1}
+            >
+              Next <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
-        {lot2526Drafts.map((draft, index) => {
+        {pageIndices.map((index) => {
+          const draft = lot2526Drafts[index];
           const prev = lot2526Drafts[index - 1];
           const groupKey = draft.record_id ?? draft.filename;
-          const isNewGroup = index === 0 || groupKey !== (prev?.record_id ?? prev?.filename);
+          // Show the file-name divider whenever this is truly the start of a
+          // new file's rows, OR it's the first row on this page (a group
+          // spanning a page break shouldn't leave the current page without
+          // any indication of which file its rows belong to).
+          const isNewGroup =
+            index === 0 || groupKey !== (prev?.record_id ?? prev?.filename) || index === startIndex;
           const linkedRecord = records.find((r) => r.record_id === draft.record_id);
           const testBau = linkedRecord ? getRecordField(linkedRecord, 'test_bau') : draft.test_bau;
           const dispositionSource = linkedRecord
